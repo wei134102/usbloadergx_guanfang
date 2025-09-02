@@ -15,6 +15,7 @@ typedef struct _GameCFG
 	short patchFix480p;
 	short deflicker;
 	short aspectratio;
+	short ScreenMode;
 	short language;
 	short ocarina;
 	short vipatch;
@@ -33,6 +34,8 @@ typedef struct _GameCFG
 	std::string NandEmuPath;
 	short Hooktype;
 	short WiirdDebugger;
+	short wpadMotor;
+	short wpadSpeaker;
 	short GameCubeMode;
 	short DMLVideo;
 	short DMLProgPatch;
@@ -55,6 +58,7 @@ typedef struct _GameCFG
 	short NINSkipIPL;
 	short NINBBA;
 	short NINBBAProfile;
+	short NINWiiUGamepadSlot;
 	short NINMCEmulation;
 	short NINMCSize;
 	short NINUSBHID;
@@ -84,6 +88,7 @@ typedef struct _GameCFG
 		this->deflicker = game.deflicker;
 		this->patchFix480p = game.patchFix480p;
 		this->aspectratio = game.aspectratio;
+		this->ScreenMode = game.ScreenMode;
 		this->language = game.language;
 		this->ocarina = game.ocarina;
 		this->vipatch = game.vipatch;
@@ -102,6 +107,8 @@ typedef struct _GameCFG
 		this->NandEmuPath = game.NandEmuPath;
 		this->Hooktype = game.Hooktype;
 		this->WiirdDebugger = game.WiirdDebugger;
+		this->wpadMotor = game.wpadMotor;
+		this->wpadSpeaker = game.wpadSpeaker;
 		this->GameCubeMode = game.GameCubeMode;
 		this->DMLVideo = game.DMLVideo;
 		this->DMLProgPatch = game.DMLProgPatch;
@@ -124,6 +131,7 @@ typedef struct _GameCFG
 		this->NINSkipIPL = game.NINSkipIPL;
 		this->NINBBA = game.NINBBA;
 		this->NINBBAProfile = game.NINBBAProfile;
+		this->NINWiiUGamepadSlot = game.NINWiiUGamepadSlot;
 		this->NINMCEmulation = game.NINMCEmulation;
 		this->NINMCSize = game.NINMCSize;
 		this->NINUSBHID = game.NINUSBHID;

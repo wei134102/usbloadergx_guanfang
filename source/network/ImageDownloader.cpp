@@ -1,6 +1,7 @@
 /****************************************************************************
  * Copyright (C) 2011 Dimok
  * Copyright (C) 2012 Cyan
+ * Copyright (C) 2025 blackb0x
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +27,7 @@
 #include "settings/CSettings.h"
 #include "settings/GameTitles.h"
 #include "language/gettext.h"
+#include "usbloader/diskspace.h"
 #include "usbloader/GetMissingGameFiles.hpp"
 #include "utils/StringTools.h"
 #include "usbloader/GameList.h"
@@ -34,20 +36,23 @@
 
 #define VALID_IMAGE(x) (!(x->size == 36864 || x->size <= 1024 || x->size == 7386 || x->size <= 1174 || x->size == 4446 || x->data == NULL))
 
-void ImageDownloader::DownloadImages()
+bool ImageDownloader::DownloadImages(bool silent)
 {
-	bool showBanner = (Settings.LoaderMode & MODE_GCGAMES);
-
-	int choice = CheckboxWindow(tr( "Cover Download" ), 0, tr( "3D Covers" ), tr( "Flat Covers" ), tr("Full Covers"), tr( "Disc Artwork" ), showBanner ? tr( "Custom Banners" ) : 0, 0, showBanner ? 0x1F : 0xF); // ask for download choice
-	if (choice == 0 || choice == CheckedNone)
-		return;
+	int choice = CheckedBox1 | CheckedBox2 | CheckedBox3 | CheckedBox4 | CheckedBox5;
+	if (!silent)
+	{
+		choice = CheckboxPrompt::Show(tr( "Cover Download" ), 0, tr( "3D Covers" ), tr( "Flat Covers" ), tr("Full Covers"), tr( "Disc Artwork" ), tr( "Custom Banners" ), 0, 0x1F); // ask for download choice
+		if (choice == 0 || choice == CheckedNone)
+			return false;
+	}
 
 	ImageDownloader Downloader;
 	Downloader.SetChoices(choice);
-	Downloader.Start();
+	Downloader.Start(silent);
+	return true;
 }
 
-void ImageDownloader::Start()
+void ImageDownloader::Start(bool silent)
 {
 	gprintf("CoverDownload start - choices: %04X\n", choices);
 
@@ -62,10 +67,13 @@ void ImageDownloader::Start()
 
 	u32 TotalDownloadCount = MissingImagesCount;
 
-	if (WindowPrompt(tr("Found missing images"), fmt(tr("%i missing files"), TotalDownloadCount), tr( "Yes" ), tr( "No" )) == 0)
-		return;
+	if (!silent)
+	{
+		if (WindowPrompt(tr("Found missing images"), fmt(tr("Download %i missing files?"), TotalDownloadCount), tr( "Yes" ), tr( "No" )) == 0)
+			return;
+	}
 
-	if (!IsNetworkInit() && !NetworkInitPrompt())
+	if (!NetworkInitPrompt())
 	{
 		gprintf("No network\n");
 		return;
@@ -79,6 +87,8 @@ void ImageDownloader::Start()
 
 	ProgressStop();
 
+	InvalidateDiskSpaceCache();
+
 	if(MissingImagesCount == 0)
 		WindowPrompt(tr("Download finished"), tr("All images downloaded successfully."), tr( "OK" ));
 	else
@@ -91,10 +101,6 @@ void ImageDownloader::Start()
 
 void ImageDownloader::FindMissingImages()
 {
-	wString oldFilter(gameList.GetCurrentFilter());
-
-	// Make sure that all games are added to the gamelist
-	gameList.LoadUnfiltered();
 
 	if(choices & CheckedBox1)
 		FindMissing(Settings.covers_path, Settings.URL_Covers3D, NULL, tr("Downloading 3D Covers"), NULL, ".png");
@@ -124,16 +130,13 @@ void ImageDownloader::FindMissingImages()
 	{
 		FindMissing(Settings.BNRCachePath, Settings.URL_Banners, NULL, tr("Downloading Custom Banners"), NULL, ".bnr");
 	}
-
-	// Bring the game list back to it's old state
-	gameList.FilterList(oldFilter.c_str());
 }
 
 void ImageDownloader::FindMissing(const char *writepath, const char *downloadURL, const char *backupURL, const char *progressTitle, const char *backupProgressTitle, const char *fileExt)
 {
 	if (!CreateSubfolder(writepath))
 	{
-		WindowPrompt(tr( "Error !" ), fmt("%s %s", tr("Can't create directory"), writepath), tr( "OK" ));
+		WindowPrompt(tr( "Error:" ), fmt("%s %s", tr("Can't create directory"), writepath), tr( "OK" ));
 		return;
 	}
 
@@ -280,7 +283,7 @@ void ImageDownloader::DownloadImage(const char *url, const char *gameID, const c
 		case 'T': // American import to Korea
 			sprintf(region, "KO");
 			break; 
-		case 'W': // Taiwan / Hong Kong / Macau
+		case 'W': // Republic of China
 			sprintf(region, "ZH");
 			break;
 		default:  // Custom games?
@@ -293,7 +296,6 @@ void ImageDownloader::DownloadImage(const char *url, const char *gameID, const c
 		return;
 
 	// Try to find covers matching our systems language
-	std::vector<std::string> v;
 	char syslang[3] = {0};
 	switch (CONF_GetLanguage())
 	{
@@ -304,7 +306,7 @@ void ImageDownloader::DownloadImage(const char *url, const char *gameID, const c
 			sprintf(syslang, "FR");
 			break;
 		case CONF_LANG_SPANISH:
-			sprintf(syslang, "SE");
+			sprintf(syslang, "ES");
 			break;
 		case CONF_LANG_ITALIAN:
 			sprintf(syslang, "IT");

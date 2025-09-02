@@ -1,15 +1,17 @@
 // WBFS FAT by oggzee
+// Updated by blackb0x
 
 #include <stdio.h>
 #include <unistd.h>
-#include <malloc.h>
-#include <ogcsys.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/statvfs.h>
 #include <ctype.h>
+#include <vector>
+#include <string>
+#include <algorithm>
 
 #include "Controls/DeviceHandler.hpp"
 #include "FileOperations/fileops.h"
@@ -28,9 +30,6 @@
 #include "utils/tools.h"
 #include "wbfs_rw.h"
 
-#include "gecko.h"
-
-#define MAX_FAT_PATH 1024
 #define TITLE_LEN 130
 
 using namespace std;
@@ -43,14 +42,13 @@ extern int install_abort_signal;
 inline bool isGameID(const char *id)
 {
 	for (int i = 0; i < 6; i++)
-		if (!isalnum((int) id[i]))
+		if (!isalnum((int)id[i]))
 			return false;
 
 	return true;
 }
 
-Wbfs_Fat::Wbfs_Fat(u32 lba, u32 size, u32 part, u32 port) :
-	Wbfs(lba, size, part, port), fat_hdr_list(NULL), fat_hdr_count(0)
+Wbfs_Fat::Wbfs_Fat(u32 lba, u32 size, u32 part, u32 port) : Wbfs(lba, size, part, port)
 {
 	memset(wbfs_fs_drive, 0, sizeof(wbfs_fs_drive));
 }
@@ -62,7 +60,7 @@ s32 Wbfs_Fat::Open()
 	if (Settings.SDMode)
 	{
 		PartitionHandle *sdHandle = DeviceHandler::Instance()->GetSDHandle();
-		if (lba == sdHandle->GetLBAStart(0))
+		if (lba == sdHandle->GetLBAStart(partition))
 		{
 			snprintf(wbfs_fs_drive, sizeof(wbfs_fs_drive), "sd:");
 			return 0;
@@ -95,29 +93,30 @@ void Wbfs_Fat::Close()
 	memset(wbfs_fs_drive, 0, sizeof(wbfs_fs_drive));
 }
 
-wbfs_disc_t* Wbfs_Fat::OpenDisc(u8 *discid)
+wbfs_disc_t *Wbfs_Fat::OpenDisc(u8 *discid)
 {
-	char fname[MAX_FAT_PATH];
+	std::string fname = FindFilename(discid);
+	if (fname.empty())
+		return NULL;
 
-	// wbfs 'partition' file
-	if (!FindFilename(discid, fname, sizeof(fname))) return NULL;
-
-	if (strcasecmp(strrchr(fname, '.'), ".iso") == 0)
+	if (strcasecmp(strrchr(fname.c_str(), '.'), ".iso") == 0)
 	{
 		// .iso file
-		// create a fake wbfs_disc
-		int fd;
-		fd = open(fname, O_RDONLY);
-		if (fd == -1) return NULL;
-		wbfs_disc_t *iso_file = (wbfs_disc_t *) calloc(sizeof(wbfs_disc_t), 1);
-		if (iso_file == NULL) return NULL;
-		// mark with a special wbfs_part
+		// Create a fake wbfs_disc
+		int fd = open(fname.c_str(), O_RDONLY);
+		if (fd == -1)
+			return NULL;
+		wbfs_disc_t *iso_file = (wbfs_disc_t *)calloc(1, sizeof(wbfs_disc_t));
+		if (iso_file == NULL)
+			return NULL;
+		// Mark with a special wbfs_part
 		wbfs_iso_file.wbfs_sec_sz = hdd_sector_size[usbport];
 		iso_file->p = &wbfs_iso_file;
-		iso_file->header = (wbfs_disc_info_t*) malloc(sizeof(wbfs_disc_info_t));
-		if(!iso_file->header)
+		iso_file->header = (wbfs_disc_info_t *)malloc(sizeof(wbfs_disc_info_t));
+		if (!iso_file->header)
 		{
 			free(iso_file);
+			close(fd);
 			return NULL;
 		}
 		read(fd, iso_file->header, sizeof(wbfs_disc_info_t));
@@ -125,11 +124,12 @@ wbfs_disc_t* Wbfs_Fat::OpenDisc(u8 *discid)
 		return iso_file;
 	}
 
-	wbfs_t *part = OpenPart(fname);
-	if (!part) return NULL;
+	wbfs_t *part = OpenPart((char *)fname.c_str());
+	if (!part)
+		return NULL;
 
 	wbfs_disc_t *disc = wbfs_open_disc(part, discid);
-	if(!disc)
+	if (!disc)
 	{
 		ClosePart(part);
 		return NULL;
@@ -138,12 +138,13 @@ wbfs_disc_t* Wbfs_Fat::OpenDisc(u8 *discid)
 	return disc;
 }
 
-void Wbfs_Fat::CloseDisc(wbfs_disc_t* disc)
+void Wbfs_Fat::CloseDisc(wbfs_disc_t *disc)
 {
-	if (!disc) return;
+	if (!disc)
+		return;
 	wbfs_t *part = disc->p;
 
-	// is this really a .iso file?
+	// Is this really a .iso file?
 	if (part == &wbfs_iso_file)
 	{
 		close(disc->i);
@@ -160,91 +161,92 @@ void Wbfs_Fat::CloseDisc(wbfs_disc_t* disc)
 s32 Wbfs_Fat::GetCount(u32 *count)
 {
 	GetHeadersCount();
-	*count = fat_hdr_count;
+	*count = fat_hdr_vector.size();
 	return 0;
 }
 
 s32 Wbfs_Fat::GetHeaders(struct discHdr *outbuf, u32 cnt, u32 len)
 {
-	if(cnt*len > fat_hdr_count*sizeof(struct discHdr))
+	if (cnt * len > fat_hdr_vector.size() * sizeof(struct discHdr))
 		return -1;
 
-	memcpy(outbuf, fat_hdr_list, cnt*len);
-
-	if(fat_hdr_list)
-		free(fat_hdr_list);
-	fat_hdr_list = NULL;
-	fat_hdr_count = 0;
-
+	memcpy(outbuf, fat_hdr_vector.data(), cnt * len);
+	fat_hdr_vector.clear();
 	return 0;
 }
 
 s32 Wbfs_Fat::AddGame(void)
 {
-	static struct discHdr header ATTRIBUTE_ALIGN( 32 );
+	static struct discHdr header ATTRIBUTE_ALIGN(32);
 	char path[MAX_FAT_PATH];
 	wbfs_t *part = NULL;
 	s32 ret;
 
-	// read ID from DVD
+	// Read ID from DVD
 	Disc_ReadHeader(&header);
-	// path
+	// Path
 	GetDir(&header, path);
-	// create wbfs 'partition' file
+	// Create wbfs 'partition' file
 	part = CreatePart(header.id, path);
-	if (!part) return -1;
-	/* Add game to device */
-	partition_selector_t part_sel = (partition_selector_t) Settings.InstallPartitions;
+	if (!part)
+		return -1;
+	// Add game to device
+	partition_selector_t part_sel = (partition_selector_t)Settings.InstallPartitions;
 
 	ret = wbfs_add_disc(part, __ReadDVD, NULL, ShowProgress, part_sel, 0);
 	wbfs_trim(part);
 	ClosePart(part);
 
-	if(install_abort_signal)
+	if (install_abort_signal)
 		RemoveGame(header.id);
-	if (ret < 0) return ret;
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
 
 s32 Wbfs_Fat::RemoveGame(u8 *discid)
 {
-	char path[MAX_FAT_PATH];
-	int loc;
 	// wbfs 'partition' file
-	loc = FindFilename(discid, path, sizeof(path));
-	if (!loc) return -1;
-	split_create(&split, path, 0, 0, true);
+	std::string path = FindFilename(discid);
+	if (path.empty())
+		return -1;
+	split_create(&split, const_cast<char *>(path.c_str()), 0, 0, true);
 	split_close(&split);
-	if (loc == 1) return 0;
 
-	// game is in subdir
-	// remove optional .txt file
-	DIR *dir = NULL;
+	// Done if not in subdir
+	size_t lastslash = path.find_last_of('/');
+	if (lastslash == std::string::npos || lastslash <= 0)
+		return 0;
+
+	// Remove optional .txt file in subdir
+	std::string dirpath = path.substr(0, lastslash);
+	DIR *dir = opendir(dirpath.c_str());
+	if (!dir)
+		return 0;
 	struct dirent *dirent = NULL;
-	char name[MAX_FAT_PATH];
-	char *p = strrchr(path, '/');
-	if (p) *p = 0;
-	dir = opendir(path);
-	if (!dir) return 0;
 	while ((dirent = readdir(dir)) != 0)
 	{
-		snprintf(name, sizeof(name), dirent->d_name);
-		if (name[0] == '.') continue;
-		if (name[6] != '_') continue;
-		if (strncasecmp(name, (char*) discid, 6) != 0) continue;
-		p = strrchr(name, '.');
-		if (!p) continue;
-		if (strcasecmp(p, ".txt") != 0) continue;
-		char xpath[MAX_FAT_PATH * 2];
-		snprintf(xpath, sizeof(xpath), "%s/%s", path, name);
-		remove(xpath);
+		if (dirent->d_name[0] == '.')
+			continue;
+		if (strlen(dirent->d_name) < 7)
+			continue;
+		if (dirent->d_name[6] != '_')
+			continue;
+		if (strncasecmp(dirent->d_name, (char *)discid, 6) != 0)
+			continue;
+		const char *p = strrchr(dirent->d_name, '.');
+		if (!p)
+			continue;
+		if (strcasecmp(p, ".txt") != 0)
+			continue;
+		std::string xpath = dirpath + "/" + dirent->d_name;
+		remove(xpath.c_str());
 		break;
 	}
 	closedir(dir);
-	// remove game subdir
-	remove(path);
-	rmdir(path);
+	remove(dirpath.c_str());
+	rmdir(dirpath.c_str());
 	return 0;
 }
 
@@ -254,8 +256,8 @@ s32 Wbfs_Fat::DiskSpace(f32 *used, f32 *free)
 	static f32 free_cached = 0.0;
 	static int game_count = 0;
 
-	//! Since it's freaken slow, only refresh on new gamecount
-	if(used_cached == 0.0 || game_count != gameList.GameCount())
+	// Since it's freaken slow, only refresh on new gamecount
+	if (used_cached == 0.0 || game_count != gameList.GameCount())
 	{
 		game_count = gameList.GameCount();
 	}
@@ -273,11 +275,12 @@ s32 Wbfs_Fat::DiskSpace(f32 *used, f32 *free)
 	*used = used_cached = 0.0;
 	*free = free_cached = 0.0;
 	ret = statvfs(wbfs_fs_drive, &wbfs_fat_vfs);
-	if (ret) return -1;
+	if (ret)
+		return -1;
 
-	/* FS size in GB */
-	size = (f32) wbfs_fat_vfs.f_frsize * (f32) wbfs_fat_vfs.f_blocks / GB_SIZE;
-	*free = free_cached = (f32) wbfs_fat_vfs.f_frsize * (f32) wbfs_fat_vfs.f_bfree / GB_SIZE;
+	// FS size in GB
+	size = (f32)wbfs_fat_vfs.f_frsize * (f32)wbfs_fat_vfs.f_blocks / GB_SIZE;
+	*free = free_cached = (f32)wbfs_fat_vfs.f_frsize * (f32)wbfs_fat_vfs.f_bfree / GB_SIZE;
 	*used = used_cached = size - *free;
 
 	return 0;
@@ -285,10 +288,11 @@ s32 Wbfs_Fat::DiskSpace(f32 *used, f32 *free)
 
 s32 Wbfs_Fat::RenameGame(u8 *discid, const void *newname)
 {
-	wbfs_t *part = OpenPart((char *) discid);
-	if (!part) return -1;
+	wbfs_t *part = OpenPart((char *)discid);
+	if (!part)
+		return -1;
 
-	s32 ret = wbfs_ren_disc(part, discid, (u8*) newname);
+	s32 ret = wbfs_ren_disc(part, discid, (u8 *)newname);
 
 	ClosePart(part);
 
@@ -297,10 +301,11 @@ s32 Wbfs_Fat::RenameGame(u8 *discid, const void *newname)
 
 s32 Wbfs_Fat::ReIDGame(u8 *discid, const void *newID)
 {
-	wbfs_t *part = OpenPart((char *) discid);
-	if (!part) return -1;
+	wbfs_t *part = OpenPart((char *)discid);
+	if (!part)
+		return -1;
 
-	s32 ret = wbfs_rID_disc(part, discid, (u8*) newID);
+	s32 ret = wbfs_rID_disc(part, discid, (u8 *)newID);
 
 	ClosePart(part);
 
@@ -311,7 +316,7 @@ s32 Wbfs_Fat::ReIDGame(u8 *discid, const void *newID)
 		s32 cnt = 0x31;
 
 		Filename(discid, fname, sizeof(fname), NULL);
-		Filename((u8*) newID, fnamenew, sizeof(fnamenew), NULL);
+		Filename((u8 *)newID, fnamenew, sizeof(fnamenew), NULL);
 
 		int stringlength = strlen(fname);
 
@@ -331,17 +336,17 @@ s32 Wbfs_Fat::ReIDGame(u8 *discid, const void *newID)
 u64 Wbfs_Fat::EstimateGameSize()
 {
 	wbfs_t *part = NULL;
-	u64 size = (u64) 143432 * 2 * 0x8000ULL;
+	u64 size = (u64)143432 * 2 * 0x8000ULL;
 	u32 n_sector = size / hdd_sector_size[usbport];
 
-	// init a temporary dummy part
-	// as a placeholder for wbfs_size_disc
+	// Init a temporary dummy part as a placeholder for wbfs_size_disc
 	wbfs_set_force_mode(1);
 	part = wbfs_open_partition(nop_rw_sector, nop_rw_sector, NULL, hdd_sector_size[usbport], n_sector, 0, 1);
 	wbfs_set_force_mode(0);
-	if (!part) return -1;
+	if (!part)
+		return -1;
 
-	partition_selector_t part_sel = (partition_selector_t) Settings.InstallPartitions;
+	partition_selector_t part_sel = (partition_selector_t)Settings.InstallPartitions;
 
 	u64 estimated_size = wbfs_estimate_disc(part, __ReadDVD, NULL, part_sel);
 
@@ -350,23 +355,27 @@ u64 Wbfs_Fat::EstimateGameSize()
 	return estimated_size;
 }
 
-// TITLE [GAMEID]
-bool Wbfs_Fat::CheckLayoutB(char *fname, int len, u8* id, char *fname_title)
+bool Wbfs_Fat::CheckLayoutB(char *fname, int len, u8 *id, char *fname_title)
 {
-	if (len <= 8) return false;
-	if (fname[len - 8] != '[' || fname[len - 1] != ']') return false;
-	if (!isGameID(&fname[len - 7])) return false;
+	if (len <= 8)
+		return false;
+	if (fname[len - 8] != '[' || fname[len - 1] != ']')
+		return false;
+	if (!isGameID(&fname[len - 7]))
+		return false;
 	strncpy(fname_title, fname, TITLE_LEN);
-	// cut at '['
+	// Cut at '['
 	fname_title[len - 8] = 0;
 	int n = strlen(fname_title);
-	if (n == 0) return false;
-	// cut trailing _ or ' '
+	if (n == 0)
+		return false;
+	// Cut trailing _ or ' '
 	if (fname_title[n - 1] == ' ' || fname_title[n - 1] == '_')
 	{
 		fname_title[n - 1] = 0;
 	}
-	if (strlen(fname_title) == 0) return false;
+	if (strlen(fname_title) == 0)
+		return false;
 	if (id)
 	{
 		memcpy(id, &fname[len - 7], 6);
@@ -377,14 +386,6 @@ bool Wbfs_Fat::CheckLayoutB(char *fname, int len, u8* id, char *fname_title)
 
 void Wbfs_Fat::AddHeader(struct discHdr *discHeader)
 {
-	//! First allocate before reallocating
-	if (!fat_hdr_list)
-		fat_hdr_list = (struct discHdr *)malloc(sizeof(struct discHdr));
-
-	struct discHdr *tmpList = (struct discHdr *)realloc(fat_hdr_list, (fat_hdr_count + 1) * sizeof(struct discHdr));
-	if (!tmpList)
-		return; // out of memory, keep the list until now and stop
-
 	for (int j = 0; j < 6; ++j)
 		discHeader->id[j] = toupper((int)discHeader->id[j]);
 
@@ -392,222 +393,226 @@ void Wbfs_Fat::AddHeader(struct discHdr *discHeader)
 	title.erase(0, title.find_first_not_of(' '));
 	snprintf(discHeader->title, sizeof(discHeader->title), "%s", title.c_str());
 
-	fat_hdr_list = tmpList;
-	memcpy(&fat_hdr_list[fat_hdr_count], discHeader, sizeof(struct discHdr));
+	fat_hdr_vector.push_back(*discHeader);
 	if ((Settings.TitlesType == TITLETYPE_FORCED_DISC && GameTitles.GetTitleType((const char *)discHeader->id) != TITLETYPE_MANUAL_OVERRIDE))
 		GameTitles.SetGameTitle((const char *)discHeader->id, discHeader->title, TITLETYPE_FORCED_DISC);
-	fat_hdr_count++;
 }
 
-s32 Wbfs_Fat::GetHeadersCount()
+bool Wbfs_Fat::IsDuplicateID(const u8 *id)
 {
-	char path[MAX_FAT_PATH];
-	char fname[MAX_FAT_PATH * 2];
-	char fpath[MAX_FAT_PATH * 3];
+	for (const auto &hdr : fat_hdr_vector)
+	{
+		if (memcmp(hdr.id, id, 6) == 0)
+			return true;
+	}
+	return false;
+}
+
+void Wbfs_Fat::GetHeadersCount()
+{
+	std::string base_path = std::string(wbfs_fs_drive) + wbfs_fat_dir;
 	char fname_title[TITLE_LEN];
 	struct discHdr tmpHdr;
 	struct stat st;
-	int is_dir;
-	int len;
 	u8 id[8];
 	memset(id, 0, sizeof(id));
 	DIR *dir_iter;
 	struct dirent *dirent;
 
-	if(fat_hdr_list)
-		free(fat_hdr_list);
-	fat_hdr_list = NULL;
-	fat_hdr_count = 0;
+	fat_hdr_vector.clear();
 
-	strcpy(path, wbfs_fs_drive);
-	strcat(path, wbfs_fat_dir);
-
-	dir_iter = opendir(path);
-	if (!dir_iter) return 0;
+	dir_iter = opendir(base_path.c_str());
+	if (!dir_iter)
+		return;
 
 	while ((dirent = readdir(dir_iter)) != 0)
 	{
-		if (dirent->d_name[0] == '.') continue;
+		if (dirent->d_name[0] == '.')
+			continue;
 
-		snprintf(fname, sizeof(fname), "%s", dirent->d_name);
-
-		// reset id and title
+		std::string entry_name = dirent->d_name;
+		std::string fileext;
 		memset(id, 0, sizeof(id));
 		*fname_title = 0;
 
-		const char * fileext = strrchr(fname, '.');
-		if(fileext && (strcasecmp(fileext, ".wbfs") == 0 ||
-		   strcasecmp(fileext, ".iso") == 0 || strcasecmp(fileext, ".ciso") == 0))
+		size_t dot = entry_name.rfind('.');
+		if (dot != std::string::npos)
+			fileext = entry_name.substr(dot);
+
+		std::string fpath;
+		bool is_dir = false;
+
+		if (!fileext.empty() &&
+			(strcasecmp(fileext.c_str(), ".wbfs") == 0 ||
+			 strcasecmp(fileext.c_str(), ".iso") == 0 ||
+			 strcasecmp(fileext.c_str(), ".ciso") == 0))
 		{
-			// usb:/wbfs/GAMEID.wbfs
-			// or usb:/wbfs/GAMEID.iso
-			// or usb:/wbfs/GAMEID.ciso
-			int n = fileext - fname; // length withouth .wbfs
-			memcpy(id, fname, 6);
+			int n = dot;
+			memcpy(id, entry_name.c_str(), 6);
 			if (n != 6)
 			{
-				// TITLE [GAMEID].wbfs
-				if (!CheckLayoutB(fname, n, id, fname_title)) continue;
+				if (!CheckLayoutB((char *)entry_name.c_str(), n, id, fname_title))
+					continue;
 			}
-			snprintf(fpath, sizeof(fpath), "%s/%s", path, fname);
-			is_dir = 0;
+			fpath = base_path + "/" + entry_name;
 		}
 		else
 		{
-			snprintf(fname, sizeof(fname), "%s/%s", path, dirent->d_name);
-
-			if(stat(fname, &st) != 0)
+			std::string full_dir = base_path + "/" + entry_name;
+			if (stat(full_dir.c_str(), &st) != 0)
+				continue;
+			is_dir = S_ISDIR(st.st_mode);
+			if (!is_dir)
 				continue;
 
-			is_dir = S_ISDIR( st.st_mode );
-			if(!is_dir) continue;
+			int len = entry_name.length();
+			if (len < 6)
+				continue;
 
-			snprintf(fname, sizeof(fname), "%s", dirent->d_name);
-
-			len = strlen(fname);
-			if (len < 6) continue; // less than "GAMEID"
-
-			if(len == 6)
+			if (len == 6)
 			{
-				// usb:/wbfs/GAMEID/GAMEID.wbfs
-				if(!isGameID(fname))
+				if (!isGameID(entry_name.c_str()))
 					continue;
-				
-				memcpy(id, fname, 6);
+				memcpy(id, entry_name.c_str(), 6);
 			}
-			else if(len >= 8 ) // GAMEID_Title or Title_[GameID]
+			else if (len >= 8)
 			{
 				int lay_a = 0;
 				int lay_b = 0;
-				if (CheckLayoutB(fname, len, id, fname_title))
+				if (CheckLayoutB((char *)entry_name.c_str(), len, id, fname_title))
 				{
-					// usb:/wbfs/TITLE[GAMEID]/GAMEID.wbfs
 					lay_b = 1;
 				}
-				else if (fname[6] == '_')
+				else if (entry_name[6] == '_')
 				{
-					// usb:/wbfs/GAMEID_TITLE/GAMEID.wbfs
-					memcpy(id, fname, 6);
+					memcpy(id, entry_name.c_str(), 6);
 
-					if(isGameID((char*) id))
+					if (isGameID((char *)id))
 					{
 						lay_a = 1;
-						snprintf(fname_title, sizeof(fname_title), &fname[7]);
+						snprintf(fname_title, sizeof(fname_title), "%s", entry_name.c_str() + 7);
 					}
 				}
 
-				if (!lay_a && !lay_b) continue;
+				if (!lay_a && !lay_b)
+					continue;
 			}
-			else // Todo : Add usb:/wbfs/Title/GAMEID.wbfs
+			else
 				continue;
 
-			
-			// check ahead, make sure it succeeds
-			snprintf(fpath, sizeof(fpath), "%s/%s/%.6s.wbfs", path, dirent->d_name, (char *) id);
+			// Only add if a valid file exists in the subdir
+			bool found = false;
+			const char *exts[] = {".wbfs", ".iso", ".ciso"};
+			for (int i = 0; i < 3; ++i)
+			{
+				std::string testpath = full_dir + "/" + std::string((char *)id, 6) + exts[i];
+				if (stat(testpath.c_str(), &st) == 0)
+				{
+					fpath = testpath;
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				continue;
+			// Set fileext for later
+			dot = fpath.rfind('.');
+			if (dot != std::string::npos)
+				fileext = fpath.substr(dot);
 		}
+
+		if (fpath.empty() || fileext.empty())
+			continue;
+
+		// Check the path isn't too long
+		if (fpath.length() >= sizeof(tmpHdr.path))
+			continue;
+
+		if (IsDuplicateID(id))
+			continue;
+
+		memset(&tmpHdr, 0, sizeof(tmpHdr));
+		memcpy(tmpHdr.id, id, sizeof(tmpHdr.id));
 
 		std::string title = "";
 		if (Settings.TitlesType == TITLETYPE_FORCED_DISC && GameTitles.GetTitleType((const char *)id) == TITLETYPE_FORCED_DISC)
 			title.assign(GameTitles.GetTitle((const char *)id));
-
 		if (title.length() == 0 && Settings.TitlesType != TITLETYPE_FORCED_DISC && strlen(fname_title) > 0)
 			title.assign(fname_title);
 
 		if (*id != 0 && title.length() > 0 && title.length() < 64)
 		{
-			memset(&tmpHdr, 0, sizeof(tmpHdr));
-			memcpy(tmpHdr.id, id, sizeof(tmpHdr.id));
+			snprintf(tmpHdr.path, sizeof(tmpHdr.path), "%s", fpath.c_str());
 			snprintf(tmpHdr.title, sizeof(tmpHdr.title), "%s", title.c_str());
+			if (strcasecmp(fileext.c_str(), ".ciso") == 0)
+				tmpHdr.is_ciso = 1;
+			else
+				tmpHdr.is_ciso = 0;
 			tmpHdr.magic = 0x5D1C9EA3;
 			AddHeader(&tmpHdr);
 			continue;
 		}
 
-		// Check for existing wbfs/iso/ciso file in the directory
-		if(is_dir)
+		if (strcasecmp(fileext.c_str(), ".wbfs") == 0)
 		{
-			if (stat(fpath, &st) != 0)
-			{
-				// look for direct .iso file
-				strcpy(strrchr(fpath, '.'), ".iso"); // replace .wbfs with .iso
-				if (stat(fpath, &st) != 0)
-				{
-					// look for direct .ciso file
-					strcpy(strrchr(fpath, '.'), ".ciso"); // replace .iso with .ciso
-					if (stat(fpath, &st) != 0) continue;
-				}
-			}
-		}
-
-		fileext = strrchr(fpath, '.');
-		// Sanity check
-		if(!fileext)
-			continue;
-
-		// else read it from file directly
-		if (strcasecmp(fileext, ".wbfs") == 0)
-		{
-			// wbfs file directly
-			FILE *fp = fopen(fpath, "rb");
+			FILE *fp = fopen(fpath.c_str(), "rb");
 			if (fp != NULL)
 			{
 				fseek(fp, 512, SEEK_SET);
 				fread(&tmpHdr, sizeof(struct discHdr), 1, fp);
 				fclose(fp);
-				tmpHdr.is_ciso = 0;
 				if ((tmpHdr.magic == 0x5D1C9EA3) && (memcmp(tmpHdr.id, id, 6) == 0))
 				{
+					snprintf(tmpHdr.path, sizeof(tmpHdr.path), "%s", fpath.c_str());
+					tmpHdr.is_ciso = 0;
 					AddHeader(&tmpHdr);
 					continue;
 				}
 			}
-			// no title found, read it from wbfs file
-			// but this is a little bit slower
-			// open 'partition' file
-			wbfs_t *part = OpenPart(fpath);
+			wbfs_t *part = OpenPart((char *)fpath.c_str());
 			if (!part)
 				continue;
 
 			u32 size;
-			// Get header
-			int ret = wbfs_get_disc_info(part, 0, (u8*) &tmpHdr, sizeof(struct discHdr), &size);
+			int ret = wbfs_get_disc_info(part, 0, (u8 *)&tmpHdr, sizeof(struct discHdr), &size);
 			ClosePart(part);
 			if (ret == 0)
 			{
+				snprintf(tmpHdr.path, sizeof(tmpHdr.path), "%s", fpath.c_str());
+				tmpHdr.is_ciso = 0;
 				AddHeader(&tmpHdr);
 				continue;
 			}
-
 		}
-		else if (strcasecmp(fileext, ".iso") == 0)
+		else if (strcasecmp(fileext.c_str(), ".iso") == 0)
 		{
-			// iso file
-			FILE *fp = fopen(fpath, "rb");
+			FILE *fp = fopen(fpath.c_str(), "rb");
 			if (fp != NULL)
 			{
 				fseek(fp, 0, SEEK_SET);
 				fread(&tmpHdr, sizeof(struct discHdr), 1, fp);
 				fclose(fp);
-				tmpHdr.is_ciso = 0;
 				if ((tmpHdr.magic == 0x5D1C9EA3) && (memcmp(tmpHdr.id, id, 6) == 0))
 				{
+					snprintf(tmpHdr.path, sizeof(tmpHdr.path), "%s", fpath.c_str());
+					tmpHdr.is_ciso = 0;
 					AddHeader(&tmpHdr);
 					continue;
 				}
 			}
 		}
-		else if (strcasecmp(fileext, ".ciso") == 0)
+		else if (strcasecmp(fileext.c_str(), ".ciso") == 0)
 		{
-			// ciso file
-			FILE *fp = fopen(fpath, "rb");
+			FILE *fp = fopen(fpath.c_str(), "rb");
 			if (fp != NULL)
 			{
 				fseek(fp, 0x8000, SEEK_SET);
 				fread(&tmpHdr, sizeof(struct discHdr), 1, fp);
 				fclose(fp);
-				tmpHdr.is_ciso = 1;
 				if ((tmpHdr.magic == 0x5D1C9EA3) && (memcmp(tmpHdr.id, id, 6) == 0))
 				{
+					snprintf(tmpHdr.path, sizeof(tmpHdr.path), "%s", fpath.c_str());
+					tmpHdr.is_ciso = 1;
 					AddHeader(&tmpHdr);
 					continue;
 				}
@@ -616,103 +621,32 @@ s32 Wbfs_Fat::GetHeadersCount()
 	}
 
 	closedir(dir_iter);
-
-	return 0;
 }
 
-int Wbfs_Fat::FindFilename(u8 *id, char *fname, int len)
+std::string Wbfs_Fat::FindFilename(u8 *id)
 {
-	struct stat st;
-	// look for direct .wbfs file
-	Filename(id, fname, len, NULL);
-	if (stat(fname, &st) == 0) return 1;
-	// look for direct .iso file
-	strcpy(strrchr(fname, '.'), ".iso"); // replace .wbfs with .iso
-	if (stat(fname, &st) == 0) return 1;
-	// look for direct .ciso file
-	strcpy(strrchr(fname, '.'), ".ciso"); // replace .iso with .ciso
-	if (stat(fname, &st) == 0) return 1;
+	extern GameList gameList;
+	const struct discHdr *hdr = gameList.GetDiscHeader((char *)id);
+	if (hdr && strlen(hdr->path) > 0 && strlen(hdr->path) < MAX_FAT_PATH)
+		return hdr->path;
 
-	// direct file not found, check subdirs
-	*fname = 0;
-	DIR *dir_iter;
-	struct dirent *dirent;
-	char gameID[7];
-	snprintf(gameID, sizeof(gameID), (char *) id);
-	char path[MAX_FAT_PATH];
-	strcpy(path, wbfs_fs_drive);
-	strcat(path, wbfs_fat_dir);
-
-	dir_iter = opendir(path);
-	if (!dir_iter)
-		return 0;
-
-	while ((dirent = readdir(dir_iter)) != 0)
-	{
-		if(strcasestr(dirent->d_name, gameID) == NULL) continue;
-
-		if (dirent->d_name[0] == '.') continue;
-		int n = strlen(dirent->d_name);
-		if (n < 6) continue;
-
-		const char *fileext = strrchr(dirent->d_name, '.');
-		if(fileext && (strcasecmp(fileext, ".wbfs") == 0 ||
-		   strcasecmp(fileext, ".iso") == 0 || strcasecmp(fileext, ".ciso") == 0))
-		{
-			// TITLE [GAMEID].wbfs
-			char fn_title[TITLE_LEN];
-			u8 fn_id[8];
-			int n = fileext - dirent->d_name; // length withouth .wbfs
-			if (!CheckLayoutB(dirent->d_name, n, fn_id, fn_title)) continue;
-			if (strncasecmp((char*) fn_id, gameID, 6) != 0) continue;
-			snprintf(fname, len, "%s/%s", path, dirent->d_name);
-			if (stat(fname, &st) == 0) break;
-		}
-
-		snprintf(fname, len, "%s/%s", path, dirent->d_name);
-
-		if(stat(fname, &st) != 0)
-		{
-			*fname = 0;
-			continue;
-		}
-
-		if (S_ISDIR( st.st_mode ))
-		{
-			// look for .wbfs file
-			snprintf(fname, len, "%s/%s/%.6s.wbfs", path, dirent->d_name, gameID);
-			if (stat(fname, &st) == 0) break;
-			// look for .iso file
-			snprintf(fname, len, "%s/%s/%.6s.iso", path, dirent->d_name, gameID);
-			if (stat(fname, &st) == 0) break;
-			// look for .ciso file
-			snprintf(fname, len, "%s/%s/%.6s.ciso", path, dirent->d_name, gameID);
-			if (stat(fname, &st) == 0) break;
-		}
-
-		*fname = 0;
-	}
-	closedir(dir_iter);
-
-	if (*fname)
-		return 2;
-
-	return 0;
+	return "";
 }
 
-wbfs_t* Wbfs_Fat::OpenPart(char *fname)
+wbfs_t *Wbfs_Fat::OpenPart(char *fname)
 {
 	wbfs_t *part = NULL;
 	int ret;
 
 	// wbfs 'partition' file
 	ret = split_open(&split, fname);
-	if (ret) return NULL;
+	if (ret)
+		return NULL;
 
 	wbfs_set_force_mode(1);
 
-	part = wbfs_open_partition(split_read_sector, nop_rw_sector, //readonly //split_write_sector,
-			&split, hdd_sector_size[usbport], split.total_sec, 0, 0);
+	part = wbfs_open_partition(split_read_sector, nop_rw_sector, // readonly //split_write_sector,
+							   &split, hdd_sector_size[usbport], split.total_sec, 0, 0);
 
 	wbfs_set_force_mode(0);
 
@@ -722,12 +656,14 @@ wbfs_t* Wbfs_Fat::OpenPart(char *fname)
 	return part;
 }
 
-void Wbfs_Fat::ClosePart(wbfs_t* part)
+void Wbfs_Fat::ClosePart(wbfs_t *part)
 {
-	if (!part) return;
-	split_info_t *s = (split_info_t*) part->callback_data;
+	if (!part)
+		return;
+	split_info_t *s = (split_info_t *)part->callback_data;
 	wbfs_close(part);
-	if (s) split_close(s);
+	if (s)
+		split_close(s);
 }
 
 void Wbfs_Fat::Filename(u8 *id, char *fname, int len, char *path)
@@ -750,45 +686,48 @@ void Wbfs_Fat::GetDir(struct discHdr *header, char *path)
 	{
 		strcat(path, "/");
 		int layout = 0;
-		if (Settings.InstallToDir == 2) layout = 1;
+		if (Settings.InstallToDir == 2)
+			layout = 1;
 		mk_gameid_title(header, path + strlen(path), 0, layout);
 	}
 }
 
-wbfs_t* Wbfs_Fat::CreatePart(u8 *id, char *path)
+wbfs_t *Wbfs_Fat::CreatePart(u8 *id, char *path)
 {
 	char fname[MAX_FAT_PATH];
 	wbfs_t *part = NULL;
-	u64 size = (u64) 143432 * 2 * 0x8000ULL;
+	u64 size = (u64)143432 * 2 * 0x8000ULL;
 	u32 n_sector = size / 512;
 	int ret;
 
-	if(!CreateSubfolder(path)) // game subdir
+	// Game subdir
+	if (!CreateSubfolder(path))
 	{
 		ProgressStop();
 		ShowError(tr("Error creating path: %s"), path);
 		return NULL;
 	}
 
-	// 1 cluster less than 4gb
+	// 1 cluster less than 4GB
 	u64 OPT_split_size = 4LL * 1024 * 1024 * 1024 - 32 * 1024;
 
-	if(Settings.SDMode && Settings.GameSplit == GAMESPLIT_NONE && DeviceHandler::GetFilesystemType(SD) != PART_FS_FAT)
-			OPT_split_size = (u64) 100LL * 1024 * 1024 * 1024 - 32 * 1024;
+	if (Settings.SDMode && Settings.GameSplit == GAMESPLIT_NONE && DeviceHandler::GetFilesystemType(SD) != PART_FS_FAT)
+		OPT_split_size = (u64)100LL * 1024 * 1024 * 1024 - 32 * 1024;
 
-	else if(Settings.GameSplit == GAMESPLIT_NONE && DeviceHandler::GetFilesystemType(USB1+Settings.partition) != PART_FS_FAT)
-			OPT_split_size = (u64) 100LL * 1024 * 1024 * 1024 - 32 * 1024;
+	else if (Settings.GameSplit == GAMESPLIT_NONE && DeviceHandler::GetFilesystemType(USB1 + Settings.partition) != PART_FS_FAT)
+		OPT_split_size = (u64)100LL * 1024 * 1024 * 1024 - 32 * 1024;
 
-	else if(Settings.GameSplit == GAMESPLIT_2GB)
-		// 1 cluster less than 2gb
+	else if (Settings.GameSplit == GAMESPLIT_2GB)
+		// 1 cluster less than 2GB
 		OPT_split_size = (u64)2LL * 1024 * 1024 * 1024 - 32 * 1024;
 
 	Filename(id, fname, sizeof(fname), path);
 	printf("Writing to %s\n", fname);
 	ret = split_create(&split, fname, OPT_split_size, size, true);
-	if (ret) return NULL;
+	if (ret)
+		return NULL;
 
-	// force create first file
+	// Force create first file
 	u32 scnt = 0;
 	int fd = split_get_file(&split, 0, &scnt, 0);
 	if (fd < 0)
@@ -817,7 +756,7 @@ void Wbfs_Fat::mk_gameid_title(struct discHdr *header, char *name, int re_space,
 	char title[100];
 	char id[7];
 
-	snprintf(id, sizeof(id), (char *) header->id);
+	snprintf(id, sizeof(id), (char *)header->id);
 	snprintf(title, sizeof(title), header->title);
 	CleanTitleCharacters(title);
 
@@ -830,13 +769,14 @@ void Wbfs_Fat::mk_gameid_title(struct discHdr *header, char *name, int re_space,
 		sprintf(name, "%s [%s]", title, id);
 	}
 
-	// replace space with '_'
+	// Replace space with '_'
 	if (re_space)
 	{
 		len = strlen(name);
 		for (i = 0; i < len; i++)
 		{
-			if (name[i] == ' ') name[i] = '_';
+			if (name[i] == ' ')
+				name[i] = '_';
 		}
 	}
 }
@@ -844,23 +784,23 @@ void Wbfs_Fat::mk_gameid_title(struct discHdr *header, char *name, int re_space,
 void Wbfs_Fat::CleanTitleCharacters(char *title)
 {
 	int i, len;
-	// trim leading space
+	// Trim leading space
 	len = strlen(title);
 	while (*title == ' ')
 	{
 		memmove(title, title + 1, len);
 		len--;
 	}
-	// trim trailing space - not allowed on windows directories
+	// Trim trailing space - not allowed on windows directories
 	while (len && title[len - 1] == ' ')
 	{
 		title[len - 1] = 0;
 		len--;
 	}
-	// replace silly chars with '_'
+	// Replace silly chars with '_'
 	for (i = 0; i < len; i++)
 	{
-		if (strchr(invalid_path, title[i]) || iscntrl((int) title[i]))
+		if (strchr(invalid_path, title[i]) || iscntrl((int)title[i]))
 		{
 			title[i] = '_';
 		}
@@ -869,10 +809,8 @@ void Wbfs_Fat::CleanTitleCharacters(char *title)
 
 s32 Wbfs_Fat::GetFragList(u8 *id)
 {
-	char fname[1024];
-
-	int ret = FindFilename(id, fname, sizeof(fname));
-	if (!ret) return -1;
-
-	return get_frag_list_for_file(fname, id, GetFSType(), lba, hdd_sector_size[usbport]);
+	std::string fname = FindFilename(id);
+	if (fname.empty())
+		return -1;
+	return get_frag_list_for_file(const_cast<char *>(fname.c_str()), id, GetFSType(), lba, hdd_sector_size[usbport]);
 }

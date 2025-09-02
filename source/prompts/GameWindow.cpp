@@ -23,6 +23,7 @@
 #include "utils/ShowError.h"
 #include "utils/tools.h"
 #include "cache/cache.hpp"
+#include "SoundOperations/MusicPlayer.h"
 
 #define NONE		0
 #define LEFT		1
@@ -46,6 +47,8 @@ GameWindow::GameWindow(GameBrowseMenu *m, struct discHdr *header)
 	SetPosition(0, -10);
 
 	int gameIdx;
+
+	oldFavLevel = GameStatistics.GetFavoriteRank(header->id);
 
 	//! get the game index to this header
 	for(gameIdx = 0; gameIdx < gameList.size(); ++gameIdx)
@@ -162,10 +165,13 @@ GameWindow::GameWindow(GameBrowseMenu *m, struct discHdr *header)
 		FavoriteBtn[i]->SetAlignment(ALIGN_CENTER, ALIGN_MIDDLE);
 		FavoriteBtn[i]->SetPosition(xPos, -60);
 		FavoriteBtn[i]->SetImage(FavoriteBtnImg[i]);
-		FavoriteBtn[i]->SetSoundOver(btnSoundOver);
-		FavoriteBtn[i]->SetSoundClick(btnSoundClick2);
 		FavoriteBtn[i]->SetTrigger(trigA);
-		FavoriteBtn[i]->SetEffectGrow();
+		if (Settings.godmode || !(Settings.ParentalBlocks & BLOCK_GAME_SETTINGS))
+		{
+			FavoriteBtn[i]->SetSoundOver(btnSoundOver);
+			FavoriteBtn[i]->SetSoundClick(btnSoundClick2);
+			FavoriteBtn[i]->SetEffectGrow();
+		}
 
 		xPos += 27;
 	}
@@ -291,8 +297,7 @@ GameWindow::~GameWindow()
 
 	if(gameSound) gameSound->Stop();
 	delete gameSound;
-	bgMusic->SetVolume(Settings.volume);
-
+	MusicPlayer::Instance()->SetVolume(Settings.volume);
 	ResumeGui();
 }
 
@@ -323,7 +328,7 @@ void GameWindow::LoadGameSound(const struct discHdr * header)
 	}
 	if(gameSound)
 	{
-		bgMusic->SetVolume(0);
+		MusicPlayer::Instance()->SetVolume(0);
 		if (Settings.gamesound == 2)
 			gameSound->SetLoop(1);
 		gameSound->Play();
@@ -588,6 +593,7 @@ int GameWindow::MainLoop()
 		Hide();
 
 		wiilight(0);
+		oldFavLevel = GameStatistics.GetFavoriteRank(dvdheader ? dvdheader : gameList[gameSelected]);
 		int settret = GameSettingsMenu::Execute(browserMenu, dvdheader ? dvdheader : gameList[gameSelected]);
 
 		// Show the window again or return to browser on uninstall
@@ -703,37 +709,48 @@ int GameWindow::MainLoop()
 		{
 			if (Settings.gamesound == 1 && !gameSound->IsPlaying())
 			{
-				bgMusic->SetVolume(Settings.volume);
+				MusicPlayer::Instance()->SetVolume(Settings.volume);
 				reducedVol = false;
 			}
 		}
 		else
 		{
-			bgMusic->SetVolume(Settings.volume);
+			MusicPlayer::Instance()->SetVolume(Settings.volume);
 			reducedVol = false;
 		}
 	}
 
-	for(int i = 0; i < FAVORITE_STARS; ++i)
+	struct discHdr *header = gameList[gameSelected];
+	for (int i = 0; i < FAVORITE_STARS; ++i)
 	{
-		if(FavoriteBtn[i]->GetState() == STATE_CLICKED)
+		int currentRank = GameStatistics.GetFavoriteRank(header->id);
+		if (oldFavLevel != currentRank)
 		{
-			// This button can only be clicked when this is not a dvd header
-			struct discHdr * header = gameList[gameSelected];
-			int FavoriteRank = (i+1 == GameStatistics.GetFavoriteRank(header->id)) ? 0 : i+1; // Press the current rank to reset the rank
+			oldFavLevel = currentRank;
+			for (int j = 0; j < FAVORITE_STARS; ++j)
+				FavoriteBtnImg[j]->SetImage(currentRank >= j + 1 ? imgFavorite : imgNotFavorite);
+		}
+		else if (FavoriteBtn[i]->GetState() == STATE_CLICKED)
+		{
+			if (!Settings.godmode && (Settings.ParentalBlocks & BLOCK_GAME_SETTINGS))
+				FavoriteBtn[i]->ResetState();
+			else
+			{
+				// This button can only be clicked when this is not a dvd header
+				int FavoriteRank = (i + 1 == currentRank) ? 0 : i + 1; // Press the current rank to reset the rank
 
-			GameStatistics.SetFavoriteRank(header->id, FavoriteRank);
-			GameStatistics.Save();
-			for(int j = 0; j < FAVORITE_STARS; ++j)
-				FavoriteBtnImg[j]->SetImage(FavoriteRank >= j+1 ? imgFavorite : imgNotFavorite);
+				GameStatistics.SetFavoriteRank(header->id, FavoriteRank);
+				GameStatistics.Save();
+				for (int j = 0; j < FAVORITE_STARS; ++j)
+					FavoriteBtnImg[j]->SetImage(FavoriteRank >= j + 1 ? imgFavorite : imgNotFavorite);
 
-			FavoriteBtn[i]->ResetState();
+				FavoriteBtn[i]->ResetState();
+			}
 		}
 	}
 
 	return returnVal;
 }
-
 
 void GameWindow::BootGame(struct discHdr *header)
 {
@@ -744,9 +761,10 @@ void GameWindow::BootGame(struct discHdr *header)
 	char IDfull[7];
 	snprintf(IDfull, sizeof(IDfull), "%s", (char *) header->id);
 
-	int gameIOS = game_cfg->ios == INHERIT ? Settings.cios : game_cfg->ios;
-	int autoIOS = game_cfg->autoios == INHERIT ? Settings.AutoIOS : game_cfg->autoios;
-	int gameNandEmuMode = game_cfg->NandEmuMode == INHERIT ? Settings.NandEmuMode : game_cfg->NandEmuMode;
+	s32 gameIOS = game_cfg->ios == INHERIT ? Settings.cios : game_cfg->ios;
+	u8 autoIOS = game_cfg->autoios == INHERIT ? Settings.AutoIOS : game_cfg->autoios;
+	u8 gameNandEmuMode = game_cfg->NandEmuMode == INHERIT ? Settings.NandEmuMode : game_cfg->NandEmuMode;
+	u8 ocarinaChoice = game_cfg->ocarina == INHERIT ? Settings.ocarina : game_cfg->ocarina;
 	if (header->type == TYPE_GAME_EMUNANDCHAN)
 		gameNandEmuMode = game_cfg->NandEmuMode == INHERIT ? Settings.NandEmuChanMode : game_cfg->NandEmuMode;
 
@@ -757,7 +775,7 @@ void GameWindow::BootGame(struct discHdr *header)
 		if (CheckFile(filepath) == false)
 		{
 			snprintf(filepath + n, sizeof(filepath) - n, " %s", tr( "does not exist!" ));
-			if (!WindowPrompt(tr( "Error" ), filepath, tr( "Continue" ), tr( "Cancel")))
+			if (!WindowPrompt(tr( "Error:" ), filepath, tr( "Continue" ), tr( "Cancel")))
 				return;
 		}
 	}
@@ -772,15 +790,23 @@ void GameWindow::BootGame(struct discHdr *header)
 			defaultDolPrompt((char *) header->id);
 	}
 
-	if (game_cfg->ocarina == ON || (game_cfg->ocarina == INHERIT && Settings.ocarina == ON))
+	if (ocarinaChoice)
 	{
-		char filepath[200];
+		char filepath[256];
 		int n = snprintf(filepath, sizeof(filepath), "%s%s.gct", Settings.Cheatcodespath, IDfull);
-		if (CheckFile(filepath) == false)
+		if (!CheckFile(filepath))
 		{
 			snprintf(filepath + n, sizeof(filepath) - n, " %s", tr( "does not exist!  Loading game without cheats." ));
-			if (!WindowPrompt(tr( "Error" ), filepath, tr( "Continue" ), tr( "Cancel")))
+			if (!WindowPrompt(tr( "Error:" ), filepath, tr( "Continue" ), tr( "Cancel")))
 				return;
+		}
+		else if (ocarinaChoice == OCARINA_ASK)
+		{
+			int choice = WindowPrompt(tr( "Ocarina:" ), tr( "Do you want to use cheats?" ), tr( "Yes" ), tr( "No" ));
+			if (choice == 1)
+				ocarinaChoice = OCARINA_ON;
+			else
+				ocarinaChoice = OCARINA_OFF;
 		}
 	}
 
@@ -817,10 +843,10 @@ void GameWindow::BootGame(struct discHdr *header)
 	GameStatistics.SetPlayCount(header->id, GameStatistics.GetPlayCount(header->id)+1);
 	GameStatistics.Save();
 
-	//Just calling that shuts down everything and starts game
-	int ret = GameBooter::BootGame(header);
+	// Just calling that shuts down everything and starts game
+	int ret = GameBooter::BootGame(header, ocarinaChoice);
 	
-	//If the launch is canceled, reduce playCount
+	// If the launch is canceled, reduce playCount
 	if(ret == -1)
 	{
 		GameStatistics.SetPlayCount(header->id, GameStatistics.GetPlayCount(header->id)-1);

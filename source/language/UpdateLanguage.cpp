@@ -18,9 +18,10 @@
 #include "network/URL_List.h"
 #include "prompts/PromptWindows.h"
 #include "prompts/ProgressWindow.h"
+#include "usbloader/diskspace.h"
 #include "utils/ShowError.h"
 #include "gecko.h"
-#include "svnrev.h"
+#include "version.h"
 
 static const char * LanguageFilesURL = "https://raw.githubusercontent.com/wiidev/usbloadergx/enhanced/Languages/";
 static const char * LanguagesURL = "https://raw.githubusercontent.com/wiidev/usbloadergx/enhanced/Languages/index.html";
@@ -35,7 +36,7 @@ int DownloadAllLanguageFiles()
 
 	if(!IsNetworkInit())
 	{
-		ShowError(tr("Network is not initiated."));
+		ShowError(tr("Network is not initialized."));
 		return -2;
 	}
 	char fullURL[300];
@@ -90,6 +91,8 @@ int DownloadAllLanguageFiles()
 	else
 		Settings.LoadLanguage(NULL, CONSOLE_DEFAULT);
 
+	InvalidateDiskSpaceCache();
+
 	return files_downloaded;
 }
 
@@ -103,7 +106,7 @@ int UpdateLanguageFiles()
 
 	if(!IsNetworkInit())
 	{
-		ShowError(tr("Network is not initiated."));
+		ShowError(tr("Network is not initialized."));
 		return -2;
 	}
 
@@ -128,7 +131,7 @@ int UpdateLanguageFiles()
 	//build the URL, save path, and download each file and save it
 	for(int i = 0; i < Dir.GetFilecount(); ++i)
 	{
-		snprintf(codeurl, sizeof(codeurl), "%s%s?p=%s", LanguageFilesURL, Dir.GetFilename(i), GetRev());
+		snprintf(codeurl, sizeof(codeurl), "%s%s?p=%s", LanguageFilesURL, Dir.GetFilename(i), LOADER_REV);
 		snprintf(savepath, sizeof(savepath), "%s/%s", Settings.languagefiles_path, Dir.GetFilename(i));
 
 		struct download file = {};

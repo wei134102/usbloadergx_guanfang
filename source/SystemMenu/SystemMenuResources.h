@@ -41,11 +41,12 @@ public:
 	const u8 *GetChanTtlAsh() const { return chanTtlAsh; }
 	u32 GetChanTtlAshSize() const { return chanTtlAshSize; }
 
-	const u8 *GetGCBannAsh() const { return GCBannAsh; }
-	u32 GetGCBannAshSize() const { return GCBannAshSize; }
-
 	const u8 *GetSystemFont() const { return systemFont; }
 	u32 GetSystemFontSize() const { return systemFontSize; }
+
+	const u8 *Get43DBDisc() const { return discdb; }
+	const u8 *Get43DBVC() const { return vcadb; }
+	const u8 *Get43DBWiiWare() const { return wwdb; }
 
 protected:
 	SystemMenuResources();
@@ -72,13 +73,17 @@ protected:
 	u8 *chanSelAsh;
 	u32 chanSelAshSize;
 
-	//! GCBann.ash contains the gamecube channel banner
-	u8 *GCBannAsh;
-	u32 GCBannAshSize;
-
 	//! system font
 	u8 *systemFont;
 	u32 systemFontSize;
+
+	//! 43DB
+	u8 *discdb;
+	u32 discdbSize;
+	u8 *vcadb;
+	u32 vcadbSize;
+	u8 *wwdb;
+	u32 wwdbSize;
 
 	// free data
 	void FreeEverything();

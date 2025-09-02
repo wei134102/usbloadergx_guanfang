@@ -1,11 +1,13 @@
 #ifndef _WBFS_FAT_H
 #define _WBFS_FAT_H
 
-#include <ogcsys.h>
+#include <string>
 
 #include "usbloader/splits.h"
 #include "usbloader/wbfs.h"
 #include "wbfs_base.h"
+
+#define MAX_FAT_PATH 260
 
 class Wbfs_Fat: public Wbfs
 {
@@ -41,17 +43,17 @@ class Wbfs_Fat: public Wbfs
 
 		split_info_t split;
 
-		struct discHdr *fat_hdr_list;
-		u32 fat_hdr_count;
+		std::vector<struct discHdr> fat_hdr_vector;
 		char wbfs_fs_drive[16];
 
 		wbfs_t* OpenPart(char *fname);
 		void ClosePart(wbfs_t* part);
 		wbfs_t* CreatePart(u8 *id, char *path);
-		int FindFilename(u8 *id, char *fname, int len);
-		void Filename(u8 *id, char *fname, int len, char *path);
-		s32 GetHeadersCount();
+		std::string FindFilename(u8 *id);
 		void GetDir(struct discHdr *header, char *path);
+		bool IsDuplicateID(const u8 *id);
+		void Filename(u8 *id, char *fname, int len, char *path);
+		void GetHeadersCount();
 
 		void mk_gameid_title(struct discHdr *header, char *name, int re_space, int layout);
 

@@ -7,6 +7,7 @@
 #include "language/gettext.h"
 #include "themes/CTheme.h"
 #include "FileOperations/fileops.h"
+#include "usbloader/diskspace.h"
 #include "menu.h"
 #include "sys.h"
 #include "gct.h"
@@ -60,28 +61,27 @@ int CheatMenu(const char * gameID)
 	switch (check)
 	{
 		case -1:
-			blankchoice = WindowPrompt(tr( "Error" ), tr( "Cheatfile is blank" ), tr( "Delete" ), tr( "OK" ));
+			blankchoice = WindowPrompt(tr( "Error:" ), tr( "Cheat file is blank" ), tr( "Delete" ), tr( "OK" ));
 			if(blankchoice)
 			{
 				char gctPath[200];
 				snprintf(gctPath, sizeof(gctPath), "%s%.6s.TXT", Settings.TxtCheatcodespath, gameID);
 				RemoveFile(gctPath);
+				InvalidateDiskSpaceCache();
 			}
 			break;
 		case 0:
-			download = WindowPrompt(tr( "Error" ), tr( "No Cheatfile found" ), tr( "Download Now" ), tr( "Cancel" ));
+			download = WindowPrompt(tr( "Error:" ), tr( "No Cheat file found" ), tr( "Download Now" ), tr( "Cancel" ));
 			if (download == 1)
 			{
-				download = CodeDownload(gameID);
-				if (download < 0 || gctCheats.openTxtfile(txtfilename) != 1)
-					break;
+				CodeDownload(gameID);
+				InvalidateDiskSpaceCache();
 			}
-			else
-				break;
+			break;
 		case 1:
 			int cntcheats = gctCheats.getCnt();
 			OptionList cheatslst;
-			GuiOptionBrowser chtBrowser(400, 280, &cheatslst, "bg_options_settings.png");
+			GuiOptionBrowser chtBrowser(396, 280, &cheatslst, "bg_options_settings.png");
 			chtBrowser.SetPosition(0, 90);
 			chtBrowser.SetAlignment(ALIGN_CENTER, ALIGN_TOP);
 			chtBrowser.SetClickable(true);
@@ -150,7 +150,7 @@ int CheatMenu(const char * gameID)
 						}
 						if (vActiveCheats.size() == 0)
 						{
-							if(WindowPrompt(tr( "Error" ), tr( "No cheats were selected! Should the GCT file be deleted?" ), tr("Yes"), tr("Cancel")))
+							if(WindowPrompt(tr( "Error:" ), tr( "No cheats were selected! Should the GCT file be deleted?" ), tr("Yes"), tr("Cancel")))
 							{
 								RemoveFile(gctPath);
 								w.Remove(&chtBrowser);
@@ -165,9 +165,10 @@ int CheatMenu(const char * gameID)
 							gctCheats.createGCT(vActiveCheats, gctPath);
 							WindowPrompt(tr( "GCT File created" ), NULL, tr( "OK" ));
 						}
+						InvalidateDiskSpaceCache();
 					}
 					else
-						WindowPrompt(tr( "Error" ), tr( "Could not create GCT file" ), tr( "OK" ));
+						WindowPrompt(tr( "Error:" ), tr( "Could not create GCT file" ), tr( "OK" ));
 
 					mainWindow->SetState(STATE_DISABLED);
 					w.SetState(STATE_DEFAULT);
@@ -192,7 +193,7 @@ int CheatMenu(const char * gameID)
 						for (int i = 0; i < cntcheats; i++)
 						{
 							cheatslst.SetValue(i, "%s", gctCheats.getCheatName(i).c_str());
-							// search after header and before footer
+							// Search after header and before footer
 							if(gctBuf && gctCheats.IsCheatIncluded(i, gctBuf, gctSize))
 								cheatslst.SetName(i, tr("ON"));
 							else
@@ -200,6 +201,7 @@ int CheatMenu(const char * gameID)
 						}
 						w.Append(&chtBrowser);
 					}
+					InvalidateDiskSpaceCache();
 					updateBtn.ResetState();
 				}
 			}

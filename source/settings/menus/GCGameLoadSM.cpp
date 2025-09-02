@@ -37,6 +37,13 @@ static const char * OnOffText[] =
 	trNOOP( "Auto" )
 };
 
+static const char * OnOffAskText[] =
+{
+	trNOOP( "OFF" ),
+	trNOOP( "ON" ),
+	trNOOP( "Ask" )
+};
+
 static const char * LanguageText[] =
 {
 	trNOOP( "English" ),
@@ -45,7 +52,7 @@ static const char * LanguageText[] =
 	trNOOP( "Spanish" ),
 	trNOOP( "Italian" ),
 	trNOOP( "Dutch" ),
-	trNOOP( "Console Default" ),
+	trNOOP( "Console Default" )
 };
 
 static const char * ParentalText[] =
@@ -61,7 +68,7 @@ static const char * GCMode[] =
 {
 	trNOOP( "MIOS (Default & Customs)" ),
 	trNOOP( "Devolution" ),
-	trNOOP( "Nintendont" ),
+	trNOOP( "Nintendont" )
 };
 
 static const char * DMLVideoText[] =
@@ -75,21 +82,21 @@ static const char * DMLVideoText[] =
 	"", // unused
 	trNOOP( "Force PAL480p" ),
 	trNOOP( "Force NTSC480p" ),
-	trNOOP( "None" ),
+	trNOOP( "None" )
 };
 
 static const char * DMLNMMMode[] =
 {
 	trNOOP( "OFF" ),
 	trNOOP( "ON" ),
-	trNOOP( "Debug" ),
+	trNOOP( "Debug" )
 };
 
 static const char * DMLDebug[] =
 {
 	trNOOP( "OFF" ),
 	trNOOP( "ON" ),
-	trNOOP( "Debug Wait" ),
+	trNOOP( "Debug Wait" )
 };
 
 static const char * DEVOMCText[] =
@@ -97,14 +104,24 @@ static const char * DEVOMCText[] =
 	trNOOP( "OFF" ),
 	trNOOP( "ON" ),
 	trNOOP( "Individual" ),
-	trNOOP( "Regional" ),
+	trNOOP( "Regional" )
 };
 
 static const char * NINMCText[] =
 {
 	trNOOP( "OFF" ),
 	trNOOP( "Individual" ),
-	trNOOP( "ON (Multi)" ),
+	trNOOP( "ON (Multi)" )
+};
+
+// Nintendont screwed this up and made 4 act as off
+static const char * NINGamepadText[] =
+{
+	trNOOP( "1" ),
+	trNOOP( "2" ),
+	trNOOP( "3" ),
+	trNOOP( "4" ),
+	trNOOP( "None" )
 };
 
 static int currentGCmode = 0;
@@ -169,7 +186,7 @@ void GCGameLoadSM::SetOptionNames()
 	Options->SetName(Idx++, "%s", tr( "GameCube Mode" ));
 	if(currentGCmode == GC_MODE_MIOS &&IosLoader::GetMIOSInfo() > DEFAULT_MIOS)
 	{
-		Options->SetName(Idx++, "%s", tr( "--==   DIOS MIOS (Lite) " ));
+		Options->SetName(Idx++, "%s", tr( "--==   DIOS MIOS (Lite)" ));
 		Options->SetName(Idx++, "%s", tr( "Video Mode" ));
 		Options->SetName(Idx++, "%s", tr( "Progressive Patch" ));
 		if(IosLoader::GetDMLVersion() >= DML_VERSION_DM_2_1)
@@ -193,7 +210,7 @@ void GCGameLoadSM::SetOptionNames()
 		Options->SetName(Idx++, "%s", tr( "Video Deflicker" ));
 		Options->SetName(Idx++, "%s", tr( "PAL50 Patch" ));
 		Options->SetName(Idx++, "%s", tr( "Force Widescreen" ));
-		Options->SetName(Idx++, "%s", tr( "WiiU Widescreen" ));
+		Options->SetName(Idx++, "%s", tr( "Wii U Widescreen" ));
 		Options->SetName(Idx++, "%s", tr( "Video scale" ));
 		if(GameConfig.NINVideoScale > 0)
 			Options->SetName(Idx++, "%s", tr( "Video Scale Value" ));
@@ -209,6 +226,7 @@ void GCGameLoadSM::SetOptionNames()
 		Options->SetName(Idx++, "%s", tr( "Memory Card Blocks Size" ));
 		Options->SetName(Idx++, "%s", tr( "USB-HID Controller" ));
 		Options->SetName(Idx++, "%s", tr( "GameCube Controller" ));
+		Options->SetName(Idx++, "%s", tr( "Wii U GamePad Slot" ));
 		Options->SetName(Idx++, "%s", tr( "Native Controller" ));
 		Options->SetName(Idx++, "%s", tr( "LED Activity" ));
 		Options->SetName(Idx++, "%s", tr( "Debug" ));
@@ -288,7 +306,7 @@ void GCGameLoadSM::SetOptionValues()
 		if(GameConfig.ocarina == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
-			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.ocarina]));
+			Options->SetValue(Idx++, "%s", tr(OnOffAskText[GameConfig.ocarina]));
 
 		//! Settings: DML + NIN NMM Mode
 		if(GameConfig.DMLNMM == INHERIT)
@@ -344,7 +362,7 @@ void GCGameLoadSM::SetOptionValues()
 
 		//! Settings: GameCube TITLE : DIOS MIOS (Lite) + Nintendont
 		Options->SetValue(Idx++, "==--   ");
-	
+
 		//! Settings: DML + NIN Video Mode
 		if(GameConfig.DMLVideo == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
@@ -375,7 +393,7 @@ void GCGameLoadSM::SetOptionValues()
 		else
 			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.DMLWidescreen]));
 
-		//! Settings: WiiU Widescreen
+		//! Settings: Wii U Widescreen
 		if(GameConfig.NINWiiUWide == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
@@ -391,7 +409,7 @@ void GCGameLoadSM::SetOptionValues()
 
 		if(GameConfig.NINVideoScale > 0)
 			Options->SetValue(Idx++, "%d", GameConfig.NINVideoScale);
-		
+
 		//! Settings: NIN VideoOffset
 		if(GameConfig.NINVideoOffset == INHERIT-20)
 			Options->SetValue(Idx++, tr("Use global"));
@@ -402,7 +420,7 @@ void GCGameLoadSM::SetOptionValues()
 		if(GameConfig.ocarina == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
-			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.ocarina]));
+			Options->SetValue(Idx++, "%s", tr(OnOffAskText[GameConfig.ocarina]));
 
 		//! Settings: Remove Read Speed Limiter
 		if(GameConfig.NINRemlimit == INHERIT)
@@ -453,63 +471,69 @@ void GCGameLoadSM::SetOptionValues()
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%d", MEM_CARD_BLOCKS(GameConfig.NINMCSize));
-		
+
 		//! Settings: NIN USB-HID Controller
 		if(GameConfig.NINUSBHID == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.NINUSBHID]));
-		
+
 		//! Settings: NIN MaxPads - Number of GameCube Controllers
 		if(GameConfig.NINMaxPads == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%i", GameConfig.NINMaxPads);
-		
+
+		//! Settings: NIN Wii U GamePad Slot
+		if(GameConfig.NINWiiUGamepadSlot == INHERIT)
+			Options->SetValue(Idx++, tr("Use global"));
+		else
+			Options->SetValue(Idx++, "%s", tr(NINGamepadText[GameConfig.NINWiiUGamepadSlot]));
+
 		//! Settings: NIN Native Controller
 		if(GameConfig.NINNativeSI == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.NINNativeSI]));
-			
+
 		//! Settings: NIN LED Activity
 		if(GameConfig.NINLED == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.NINLED]));
-		
+
 		//! Settings: DML + NIN Debug
 		if(GameConfig.DMLDebug == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%s", tr(DMLDebug[GameConfig.DMLDebug]));
-		
+
 		//! Settings: NIN OS Report
 		if(GameConfig.NINOSReport == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.NINOSReport]));
-		
+
 		//! Settings: NIN Log to file
 		if(GameConfig.NINLog == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%s", tr(OnOffText[GameConfig.NINLog]));
-		
+
 		//! Settings: NIN Individual Loader path setting
 		if(GameConfig.NINLoaderPath.size() == 0)
 			Options->SetValue(Idx++, tr("Use global"));
 		else
 			Options->SetValue(Idx++, "%s", GameConfig.NINLoaderPath.c_str());
-		
+
 	}
 	
 	if(currentGCmode == GC_MODE_DEVOLUTION)
 	{
-		
+
 		//! Settings: GameCube TITLE : Devolution
 		Options->SetValue(Idx++, "==--   ");
-		
+
 		//! Settings: DEVO Memory Card Emulation
 		if(GameConfig.DEVOMCEmulation == INHERIT)
 			Options->SetValue(Idx++, tr("Use global"));
@@ -670,7 +694,7 @@ int GCGameLoadSM::GetMenuInternal()
 	//! Settings: Ocarina
 	else if (currentGCmode == GC_MODE_MIOS && IosLoader::GetMIOSInfo() > DEFAULT_MIOS && ret == ++Idx)
 	{
-		if (++GameConfig.ocarina >= MAX_ON_OFF) GameConfig.ocarina = INHERIT;
+		if (++GameConfig.ocarina >= OCARINA_MAX) GameConfig.ocarina = INHERIT;
 	}
 
 	//! Settings: DML NMM Mode
@@ -754,7 +778,7 @@ int GCGameLoadSM::GetMenuInternal()
 		if (++GameConfig.DMLWidescreen >= MAX_ON_OFF) GameConfig.DMLWidescreen = INHERIT;
 	}
 
-	//! Settings: WiiU Widescreen
+	//! Settings: Wii U Widescreen
 	else if (currentGCmode == GC_MODE_NINTENDONT && ret == ++Idx)
 	{
 		if (++GameConfig.NINWiiUWide >= MAX_ON_OFF) GameConfig.NINWiiUWide = INHERIT;
@@ -773,29 +797,29 @@ int GCGameLoadSM::GetMenuInternal()
 
 	else if (currentGCmode == GC_MODE_NINTENDONT && GameConfig.NINVideoScale > 0 && ret == ++Idx)
 	{
-		char entrie[20];
-		snprintf(entrie, sizeof(entrie), "%i", GameConfig.NINVideoScale);
-		int ret = OnScreenNumpad(entrie, sizeof(entrie));
+		char entry[20];
+		snprintf(entry, sizeof(entry), "%i", GameConfig.NINVideoScale);
+		int ret = OnScreenNumpad(entry, sizeof(entry));
 		if(ret)
 		{
-			GameConfig.NINVideoScale = LIMIT(atoi(entrie), 40, 120);
+			GameConfig.NINVideoScale = LIMIT(atoi(entry), 40, 120);
 		}
 	}
 
 	//! Settings: NIN VideoOffset
 	else if (currentGCmode == GC_MODE_NINTENDONT && ret == ++Idx)
 	{
-		char entrie[20];
-		snprintf(entrie, sizeof(entrie), "%i", GameConfig.NINVideoOffset);
-		int ret = OnScreenNumpad(entrie, sizeof(entrie));
+		char entry[20];
+		snprintf(entry, sizeof(entry), "%i", GameConfig.NINVideoOffset);
+		int ret = OnScreenNumpad(entry, sizeof(entry));
 		if(ret)
-			GameConfig.NINVideoOffset = LIMIT(atoi(entrie), -21, 20);
+			GameConfig.NINVideoOffset = LIMIT(atoi(entry), -21, 20);
 	}
 
 	//! Settings: Ocarina
 	else if (currentGCmode == GC_MODE_NINTENDONT && ret == ++Idx)
 	{
-		if (++GameConfig.ocarina >= MAX_ON_OFF) GameConfig.ocarina = INHERIT;
+		if (++GameConfig.ocarina >= OCARINA_MAX) GameConfig.ocarina = INHERIT;
 	}
 
 	//! Settings: Remove Read Speed Limiter
@@ -860,12 +884,18 @@ int GCGameLoadSM::GetMenuInternal()
 		if (++GameConfig.NINMaxPads >= 5) GameConfig.NINMaxPads = INHERIT;
 	}
 
+	//! Settings: NIN Wii U GamePad Slot
+	else if (currentGCmode == GC_MODE_NINTENDONT && ret == ++Idx)
+	{
+		if (++GameConfig.NINWiiUGamepadSlot >= 5) GameConfig.NINWiiUGamepadSlot = INHERIT;
+	}
+
 	//! Settings: NIN Native Controller
 	else if (currentGCmode == GC_MODE_NINTENDONT && ret == ++Idx)
 	{
 		if (++GameConfig.NINNativeSI >= MAX_ON_OFF) GameConfig.NINNativeSI = INHERIT;
 	}
-	
+
 	//! Settings: NIN LED Activity
 	else if (currentGCmode == GC_MODE_NINTENDONT && ret == ++Idx)
 	{

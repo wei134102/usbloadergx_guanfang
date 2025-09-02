@@ -1,6 +1,6 @@
 /****************************************************************************
- * Copyright (C) 2011
- * by Dimok
+ * Copyright (C) 2011 by Dimok
+ * Copyright (C) 2025 by blackb0x
  *
  * This software is provided 'as-is', without any express or implied
  * warranty. In no event will the authors be held liable for any
@@ -21,8 +21,9 @@
  * 3. This notice may not be removed or altered from any source
  * distribution.
  ***************************************************************************/
-#include <gccore.h>
+#include <ogc/libversion.h>
 #include <ogc/machine/processor.h>
+#include <gccore.h>
 #include <unistd.h>
 
 #include "FeatureSettingsMenu.hpp"
@@ -42,6 +43,7 @@
 #include "prompts/PromptWindows.h"
 #include "prompts/ProgressWindow.h"
 #include "prompts/filebrowser.h"
+#include "usbloader/diskspace.h"
 #include "usbloader/GameList.h"
 #include "usbloader/neek.hpp"
 #include "language/gettext.h"
@@ -49,6 +51,8 @@
 #include "wad/wad.h"
 #include "sys.h"
 #include "cache/cache.hpp"
+
+#define OGC_VERSION (_V_MAJOR_ * 10000 + _V_MINOR_ * 100 + _V_PATCH_)
 
 static const char * OnOffText[] =
 {
@@ -60,7 +64,7 @@ static const char * WiilightText[WIILIGHT_MAX] =
 {
 	trNOOP( "OFF" ),
 	trNOOP( "ON" ),
-	trNOOP( "Only for Install" )
+	trNOOP( "Only for install" )
 };
 
 static const char * TitleTypeText[] =
@@ -71,7 +75,7 @@ static const char * TitleTypeText[] =
 };
 
 FeatureSettingsMenu::FeatureSettingsMenu()
-	: SettingsMenu(tr("Features Settings"), &GuiOptions, MENU_NONE)
+	: SettingsMenu(tr("Miscellaneous Settings"), &GuiOptions, MENU_NONE)
 {
 	SetOptionNames();
 	SetOptionValues();
@@ -116,9 +120,10 @@ void FeatureSettingsMenu::SetOptionNames()
 	Options->SetName(Idx++, "%s", tr( "Export SYSCONF to EmuNAND" ));
 	Options->SetName(Idx++, "%s", tr( "Dump NAND to EmuNAND" ));
 	Options->SetName(Idx++, "%s", tr( "EmuNAND WAD Manager" ));
-	Options->SetName(Idx++, "%s", tr( "Update Nintendont" ));
-	Options->SetName(Idx++, "%s", tr( "WiiU Widescreen" ));
 	Options->SetName(Idx++, "%s", tr( "Boot Neek System Menu" ));
+#if OGC_VERSION >= 21300
+	Options->SetName(Idx++, "%s", tr( "Reset Wiimote Pairings" ));
+#endif
 	Options->SetName(Idx++, "%s", tr( "Reset All Game Settings" ));
 	if (Settings.CacheTitles)
 		Options->SetName(Idx++, "%s", tr( "Reset Cached Titles" ));
@@ -170,14 +175,20 @@ void FeatureSettingsMenu::SetOptionValues()
 	//! Settings: EmuNAND WAD Manager
 	Options->SetValue(Idx++, " ");
 
-	//! Settings: Update Nintendont
+	//! Settings: Boot Neek System Menu
 	Options->SetValue(Idx++, " ");
 
-	//! Settings: WiiU Widescreen
+#if OGC_VERSION >= 21300
+	//! Settings: Reset Wiimote Pairings
+	Options->SetValue(Idx++, " ");
+#endif
+
+	//! Settings: Reset All Game Settings
 	Options->SetValue(Idx++, " ");
 
-	//! Settings: Neek boot
-	Options->SetValue(Idx++, " ");
+	//! Settings: Reset Cached Titles
+	if (Settings.CacheTitles)
+		Options->SetValue(Idx++, " ");
 
 }
 
@@ -215,7 +226,7 @@ int FeatureSettingsMenu::GetMenuInternal()
 	//! Settings: Rumble
 	else if (ret == ++Idx)
 	{
-		if (++Settings.rumble >= MAX_ON_OFF) Settings.rumble = 0; //RUMBLE
+		if (++Settings.rumble >= MAX_ON_OFF) Settings.rumble = 0;
 	}
 
 	//! Settings: AutoInit Network
@@ -247,8 +258,7 @@ int FeatureSettingsMenu::GetMenuInternal()
 			if(choice)
 			{
 				Settings.autonetwork = ON;
-				if(!IsNetworkInit())
-					Initialize_Network();
+				ResumeNetworkThread();
 			}
 		}
 
@@ -279,14 +289,14 @@ int FeatureSettingsMenu::GetMenuInternal()
 	//! Settings: Import categories from GameTDB
 	else if (ret == ++Idx)
 	{
-		int choice = WindowPrompt(tr("Import Categories"), tr("Are you sure you want to import game categories from GameTDB?"), tr("Yes"), tr("Cancel"));
-		if(choice)
+		int choice = WindowPrompt(tr("Import Categories"), tr("Are you sure you want to import game categories from WiiTDB?"), tr("Yes"), tr("Cancel"));
+		if(choice == 1)
 		{
 			char xmlpath[300];
 			snprintf(xmlpath, sizeof(xmlpath), "%swiitdb.xml", Settings.titlestxt_path);
 			if(!GameCategories.ImportFromGameTDB(xmlpath))
 			{
-				WindowPrompt(tr("Error"), tr("Could not open the WiiTDB.xml file."), tr("OK"));
+				WindowPrompt(tr("Error:"), tr("Could not open the WiiTDB.xml file."), tr("OK"));
 			}
 			else
 			{
@@ -357,7 +367,7 @@ int FeatureSettingsMenu::GetMenuInternal()
 					snprintf(text, sizeof(text), "%s %s. %s. %s", tr("Could not extract files for:"), GameTitles.GetTitle(gameList[i]), tr("Savegame might not exist for this game."), tr("Continue?"));
 
 					ProgressStop();
-					int ret = WindowPrompt(tr("Error"), text, tr("Yes"), tr("No"), tr("Skip Errors"));
+					int ret = WindowPrompt(tr("Error:"), text, tr("Yes"), tr("No"), tr("Skip Errors"));
 					if(ret == 0)
 						skipErrors = true;
 					else if(ret == 2)
@@ -373,9 +383,11 @@ int FeatureSettingsMenu::GetMenuInternal()
 				if(noErrors)
 					WindowPrompt(tr("Success."), tr("All files extracted."), tr("OK"));
 				else
-					WindowPrompt(tr("Process finished."), tr("Errors occured."), tr("OK"));
+					WindowPrompt(tr("Process finished."), tr("Errors occurred."), tr("OK"));
 			}
+
 			gameList.FilterList(filter.c_str());
+			InvalidateDiskSpaceCache();
 		}
 	}
 
@@ -403,8 +415,10 @@ int FeatureSettingsMenu::GetMenuInternal()
 			ProgressStop();
 			ProgressCancelEnable(false);
 
+			InvalidateDiskSpaceCache();
+
 			if(Error)
-				WindowPrompt(tr("Process finished."), tr("Errors occured."), tr("OK"));
+				WindowPrompt(tr("Process finished."), tr("Errors occurred."), tr("OK"));
 			else
 				WindowPrompt(tr("Success."), tr("All files extracted."), tr("OK"));
 		}
@@ -434,8 +448,10 @@ int FeatureSettingsMenu::GetMenuInternal()
 			ProgressStop();
 			ProgressCancelEnable(false);
 
+			InvalidateDiskSpaceCache();
+
 			if(Error)
-				WindowPrompt(tr("Process finished."), tr("Errors occured."), tr("OK"));
+				WindowPrompt(tr("Process finished."), tr("Errors occurred."), tr("OK"));
 			else
 				WindowPrompt(tr("Success."), tr("All files extracted."), tr("OK"));
 		}
@@ -451,7 +467,7 @@ int FeatureSettingsMenu::GetMenuInternal()
 			char *nandPath = (char *) memalign(32, ISFS_MAXPATH);
 			if(!nandPath)
 			{
-				WindowPrompt(tr("Error"), tr("Not enough memory."), tr("OK"));
+				WindowPrompt(tr("Error:"), tr("Not enough memory."), tr("OK"));
 				return MENU_NONE;
 			}
 
@@ -493,12 +509,14 @@ int FeatureSettingsMenu::GetMenuInternal()
 				if(ret != PROGRESS_CANCELED)
 				{
 					if(ret < 0)
-						WindowPrompt(tr("Process finished."), tr("Errors occured."), tr("OK"));
+						WindowPrompt(tr("Process finished."), tr("Errors occurred."), tr("OK"));
 					else
 						WindowPrompt(tr("Success."), tr("All files extracted."), tr("OK"));
 				}
 			}
 			free(nandPath);
+
+			InvalidateDiskSpaceCache();
 		}
 	}
 
@@ -561,7 +579,7 @@ int FeatureSettingsMenu::GetMenuInternal()
 							if(wadFile.Install(Settings.NandEmuChanPath))
 							{
 								//gprintf("Success : %s\n", wadList->GetFilepath(i));
-								wadList->RemoveEntrie(i);
+								wadList->RemoveEntry(i);
 								--i;
 							}
 							else 	// install error - Try to cleanup any partially installed wad data
@@ -581,7 +599,7 @@ int FeatureSettingsMenu::GetMenuInternal()
 								if(wadFile.UnInstall(Settings.NandEmuChanPath))
 								{
 									//gprintf("uninst. : %s\n", wadList->GetFilepath(i));
-									wadList->RemoveEntrie(i);
+									wadList->RemoveEntry(i);
 									--i;
 								}
 							}
@@ -644,67 +662,6 @@ int FeatureSettingsMenu::GetMenuInternal()
 		this->Append(optionBrowser);
 	}
 
-	//! Settings: Update Nintendont
-	else if (ret == ++Idx)
-	{
-		char NINUpdatePath[120];
-		snprintf(NINUpdatePath, sizeof(NINUpdatePath), "%sboot.dol", Settings.NINLoaderPath);
-		char NINUpdatePathBak[120];
-		snprintf(NINUpdatePathBak, sizeof(NINUpdatePathBak), "%sboot.bak", Settings.NINLoaderPath);
-
-		int choice = WindowPrompt(tr( "Do you want to update this file?" ), NINUpdatePath, tr( "Yes" ), tr( "Cancel" ));
-		if (choice == 1)
-		{
-			if (!IsNetworkInit() && !NetworkInitPrompt())
-			{
-				WindowPrompt(tr("Error:"), tr("Could not initialize network!"), tr("OK"));
-			}
-			else
-			{
-				// Create the directory if it doesn't exist
-				CreateSubfolder(Settings.NINLoaderPath);
-				// Rename existing boot.dol file to boot.bak
-				if (CheckFile(NINUpdatePath))
-					RenameFile(NINUpdatePath, NINUpdatePathBak);
-				
-				if (DownloadFileToPath("https://raw.githubusercontent.com/FIX94/Nintendont/master/loader/loader.dol", NINUpdatePath) > 0)
-				{
-					// Remove existing loader.dol file if found as it has priority over boot.dol, and boot.bak
-					snprintf(NINUpdatePath, sizeof(NINUpdatePath), "%s/loader.dol", Settings.NINLoaderPath);
-					RemoveFile(NINUpdatePath);
-					RemoveFile(NINUpdatePathBak);
-					WindowPrompt(tr("Successfully Updated"), 0, tr("OK"));
-				}
-				else
-				{
-					// Restore backup file if found
-					RemoveFile(NINUpdatePath);
-					if (CheckFile(NINUpdatePathBak))
-						RenameFile(NINUpdatePathBak, NINUpdatePath);
-					WindowPrompt(tr("Update Failed"), 0, tr("OK"));
-				}
-			}
-		}
-	}
-
-	// WiiU Aspect switcher (Thanks Tueidj)
-	else if (ret == ++Idx)
-	{
-		if(isWiiU()) // vWii only
-		{
-			if( read32(0xd8006a0) == 0x30000004)
-			{
-				write32(0xd8006a0, 0x30000002), mask32(0xd8006a8, 0, 2); // Set 4:3
-				Settings.widescreen = OFF;
-			}
-			else
-			{
-				write32(0xd8006a0, 0x30000004), mask32(0xd8006a8, 0, 2); // Set 16:9
-				Settings.widescreen = ON;
-			}
-		}
-	}
-
 	// Neek: Boot neek system menu with current EmuNAND channel path
 	else if (ret == ++Idx)
 	{
@@ -731,10 +688,20 @@ int FeatureSettingsMenu::GetMenuInternal()
 		}
 	}
 
+#if OGC_VERSION >= 21300
+	//! Reset Wiimote Pairings
+	else if(ret == ++Idx)
+	{
+		int choice = WindowPrompt(tr( "Reset Wiimote Pairings" ), tr( "Are you sure you want to reset?" ), tr( "Yes" ), tr( "Cancel" ));
+		if (choice == 1)
+			WPAD_WipeSavedControllers();
+	}
+#endif
+
 	//! Reset All Game Settings
 	else if(ret == ++Idx)
 	{
-		int choice = WindowPrompt(tr( "Are you sure you want to reset?" ), 0, tr( "Yes" ), tr( "Cancel" ));
+		int choice = WindowPrompt(tr( "Reset All Game Settings" ), tr( "Are you sure you want to reset?" ), tr( "Yes" ), tr( "Cancel" ));
 		if (choice == 1)
 			GameSettings.RemoveAll();
 	}
@@ -742,7 +709,7 @@ int FeatureSettingsMenu::GetMenuInternal()
 	//! Reset Cached Titles
 	else if(Settings.CacheTitles && ret == ++Idx)
 	{
-		int choice = WindowPrompt(tr( "Are you sure you want to reset?" ), 0, tr( "Yes" ), tr( "Cancel" ));
+		int choice = WindowPrompt(tr( "Reset Cached Titles" ), tr( "Are you sure you want to reset?" ), tr( "Yes" ), tr( "Cancel" ));
 		if (choice == 1)
 		{
 			gameList.clear();

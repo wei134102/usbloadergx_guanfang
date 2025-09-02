@@ -22,15 +22,13 @@
 #include "usbloader/MountGamePartition.h"
 #include "usbloader/GameBooter.hpp"
 #include "usbloader/GameList.h"
+#include "usbloader/wdvd.h"
 #include "utils/tools.h"
 #include "sys.h"
-#include "svnrev.h"
-#include "gitver.h"
-#include "usbloader/sdhc.h"
+#include "version.h"
 #include "settings/meta.h"
 
 extern bool isWiiVC; // in sys.cpp
-extern u8 sdhc_mode_sd;
 
 StartUpProcess::StartUpProcess()
 {
@@ -56,10 +54,13 @@ StartUpProcess::StartUpProcess()
 	versionTxt->SetAlignment(ALIGN_LEFT, ALIGN_BOTTOM);
 	versionTxt->SetPosition(23, screenheight - 20);
 
-#ifdef FULLCHANNEL
-	versionTxt->SetTextf("v3.0c Rev. %s (%s)", GetRev(), commitID());
+// Please don't release unofficial builds w/o tagging them as such
+#if defined(FULLCHANNEL)
+	versionTxt->SetTextf("v4.0c Rev. %s (%s)", LOADER_REV, GIT_VER);
+#elif defined(GITRELEASE)
+	versionTxt->SetTextf("v4.0 Rev. %s (%s)", LOADER_REV, GIT_VER);
 #else
-	versionTxt->SetTextf("v3.0 Rev. %s (%s)", GetRev(), commitID());
+	versionTxt->SetTextf("v4.0 Rev. %s (%s) / Unofficial", LOADER_REV, GIT_VER);
 #endif
 
 	if (strncmp(Settings.ConfigPath, "sd", 2) == 0)
@@ -113,12 +114,12 @@ int StartUpProcess::ParseArguments(int argc, char *argv[])
 		gprintf("Boot argument %i: %s\n", i + 1, argv[i]);
 
 		char *ptr = strcasestr(argv[i], "-ios=");
-		if(ptr)
+		if (ptr)
 		{
-			if(atoi(ptr+strlen("-ios=")) == 58)
+			if (atoi(ptr + strlen("-ios=")) == 58)
 				Settings.LoaderIOS = 58;
 			else
-				Settings.LoaderIOS = LIMIT(atoi(ptr+strlen("-ios=")), 200, 255);
+				Settings.LoaderIOS = LIMIT(atoi(ptr + strlen("-ios=")), 200, 255);
 		}
 
 		ptr = strcasestr(argv[i], "-bootios=");
@@ -136,24 +137,14 @@ int StartUpProcess::ParseArguments(int argc, char *argv[])
 			Settings.USBPort = LIMIT(atoi(ptr + strlen("-usbport=")), 0, 2);
 		}
 
-		ptr = strcasestr(argv[i], "-mountusb=");
-		if (ptr)
-		{
-			Settings.USBAutoMount = LIMIT(atoi(ptr + strlen("-mountusb=")), 0, 1);
-		}
-
 		if (strncmp(Settings.ConfigPath, "sd", 2) == 0)
 		{
 			ptr = strcasestr(argv[i], "-sdmode=");
 			if (ptr)
-			{
 				Settings.SDMode = LIMIT(atoi(ptr + strlen("-sdmode=")), 0, 1);
-				if (Settings.SDMode)
-					sdhc_mode_sd = 1;
-			}
 		}
 
-		if (strlen(argv[i]) == 6 && strchr(argv[i], '=') == 0 && strchr(argv[i], '-') == 0)
+		if ((strlen(argv[i]) == 6 || strlen(argv[i]) == 4) && strchr(argv[i], '=') == 0 && strchr(argv[i], '-') == 0)
 			quickBoot = i;
 	}
 
@@ -241,11 +232,10 @@ bool StartUpProcess::USBSpinUp()
 		if (sdmodeBtn->GetState() == STATE_CLICKED)
 		{
 			Settings.SDMode = ON;
-			sdhc_mode_sd = 1;
 			break;
 		}
 
-		messageTxt->SetTextf("Waiting for HDD: %i sec left\n", 20 - (int)countDown.elapsed());
+		messageTxt->SetTextf("Waiting for USB devices: %i sec left\n", 20 - (int)countDown.elapsed());
 		Draw();
 		usleep(50000);
 	} while (countDown.elapsed() < 20.f);
@@ -257,6 +247,7 @@ bool StartUpProcess::USBSpinUp()
 
 int StartUpProcess::Run(int argc, char *argv[])
 {
+	bool isBadBoot = false;
 	// A normal launch should always have the first arg be the path
 	char *ptr = strrchr(argv[0], '/');
 	if (ptr && (argv[0][2] == ':' || argv[0][3] == ':'))
@@ -265,18 +256,22 @@ int StartUpProcess::Run(int argc, char *argv[])
 		// HBC doesn't specify the USB port
 		if (strncmp(argv[0], "usb", 3) == 0)
 		{
-			snprintf(Settings.BootDevice, sizeof(Settings.BootDevice), "usb1");
+			snprintf(Settings.BootDevice, sizeof(Settings.BootDevice), "usb1:");
 			snprintf(Settings.ConfigPath, sizeof(Settings.ConfigPath), "usb1:%s/", argv[0] + 4);
 		}
 		else if (strncmp(argv[0], "sd", 2) == 0)
 			snprintf(Settings.ConfigPath, sizeof(Settings.ConfigPath), "%s/", argv[0]);
 		gprintf("Loader path: %s\n", Settings.ConfigPath);
 	}
+	// Priiloader breaks updates and passes outdated meta.xml info
+	else if (strncmp(argv[0], "/title/00000001/", 16) == 0)
+		isBadBoot = true;
+
 	int quickGameBoot = ParseArguments(argc, argv);
 
 	StartUpProcess Process;
 
-	int ret = Process.Execute(quickGameBoot != -1);
+	int ret = Process.Execute(quickGameBoot != -1, isBadBoot);
 
 	if (quickGameBoot != -1)
 		return QuickGameBoot(argv[quickGameBoot]);
@@ -296,18 +291,47 @@ void StartUpProcess::LoadIOS(u8 ios, bool boot)
 	SetTextf("Reloaded to IOS%d r%d\n", Settings.LoaderIOS, IOS_GetRevision());
 }
 
-int StartUpProcess::Execute(bool quickGameBoot)
+int StartUpProcess::Execute(bool quickGameBoot, bool isBadBoot)
 {
+	if (isBadBoot)
+	{
+		SetTextf("Install the UNEO channel booter instead\n");
+		sleep(5);
+		*(vu32 *)0x8132FFFB = 0x4461636F;
+		*(vu32 *)0x817FEFF0 = 0x4461636F;
+		DCFlushRange((void *)0x8132FFFB, 4);
+		DCFlushRange((void *)0x817FEFF0, 4);
+		SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
+	}
+
 	Settings.EntryIOS = IOS_GetVersion();
+	isWiiVC = IsWiiVCActive();
+
 	// Disable AHBPROT
 	IosPatch_AHBPROT(false);
+
+	// Patch permissions for vWii
+	IosPatch_RUNTIME(!isWiiVC, false, false, isWiiVC, false);
+
+	// Reset the region
+	ResetRegion();
+
+	// Get NAND titles
+	NandTitles.Get();
 
 	// Store dx2 cIOS info
 	IosLoader::GetD2XInfo();
 
 	gprintf("Current IOS: %d - have AHB access: %s\n", Settings.EntryIOS, AHBPROT_DISABLED ? "yes" : "no");
+
+	// Reload to a cIOS if running as a Wii U vWii VC inject
+	if (isWiiVC)
+	{
+		Settings.SDMode = ON;
+		LoadIOS(Settings.LoaderIOS, false);
+	}
 	// Reload to a cIOS if we're using both USB ports
-	if (Settings.USBPort == 2 && !Settings.SDMode)
+	else if (Settings.USBPort == 2 && !Settings.SDMode)
 		LoadIOS(Settings.LoaderIOS, false);
 
 	// Reload to a cIOS if required (old forwarder?) or requested
@@ -317,13 +341,9 @@ int StartUpProcess::Execute(bool quickGameBoot)
 	// Setup the pads
 	SetupPads();
 
-	// Mount the SD card
-	SetTextf("Initializing SD card\n");
-	DeviceHandler::Instance()->MountSD();
-
-	// Do not mount USB if not needed. USB is not available with WiiU WiiVC injected channel
+	// Do not mount USB if not needed. USB is not available with Wii U WiiVC injected channel
 	bool USBSuccess = false;
-	if (Settings.USBAutoMount == ON && !isWiiVC && !Settings.SDMode)
+	if (!isWiiVC && !Settings.SDMode)
 	{
 		SetTextf("Initializing USB devices\n");
 		if (USBSpinUp())
@@ -333,6 +353,10 @@ int StartUpProcess::Execute(bool quickGameBoot)
 			gprintf("Completed initialization of USB devices\n");
 		}
 	}
+
+	// Mount the SD card
+	SetTextf("Initializing SD card\n");
+	DeviceHandler::Instance()->MountSD();
 
 	SetTextf("Loading config files\n");
 	gprintf("\tLoading config...%s\n", Settings.Load() ? "done" : "failed");
@@ -346,22 +370,28 @@ int StartUpProcess::Execute(bool quickGameBoot)
 	gprintf("Quick game boot: %s\n", quickGameBoot ? "yes" : "no");
 	if (quickGameBoot)
 	{
-		Settings.USBAutoMount = ON;
-		Settings.LoaderMode = MODE_ALL;
+		Settings.LoaderMode = MODE_WIIGAMES | MODE_GCGAMES | MODE_EMUCHANNELS;
+		Settings.GameDisplayType = DISP_CUSTOM;
+		Settings.CacheTitles = OFF;
+		Settings.AutobootDiscs = OFF;
 		Settings.skipSaving = true;
 	}
 
 	// Reload to users settings if different than current IOS, and if not using an injected WiiU WiiVC IOS255 (fw.img)
 	if (Settings.LoaderIOS != IOS_GetVersion() && !isWiiVC)
 	{
-		// Shutdown pads
-		sleep(1); // Some Wiimotes won't reconnect as player 1 without this
-		Wpad_Disconnect();
+		// Shutdown pads, but wait for up to 2 seconds so that Wiimotes reconnect correctly
+		for (int i = 0; i < 20; i++)
+		{
+			if (WPAD_GetStatus() == WPAD_STATE_ENABLED)
+				break;
+			usleep(100000);
+		}
+		WPAD_Shutdown();
 
 		// Unmount devices
 		DeviceHandler::DestroyInstance();
-		if (Settings.USBAutoMount == ON)
-			USBStorage2_Deinit();
+		USBStorage2_Deinit();
 
 		// Now load the cIOS that was set in the settings menu
 		if (IosLoader::LoadAppCios(Settings.LoaderIOS) > -1)
@@ -376,36 +406,30 @@ int StartUpProcess::Execute(bool quickGameBoot)
 		SetupPads();
 
 		DeviceHandler::Instance()->MountSD();
-		if (Settings.USBAutoMount == ON && !Settings.SDMode && USBSuccess)
+		if (!Settings.SDMode && USBSuccess)
 		{
 			if (USBSpinUp())
 				DeviceHandler::Instance()->MountAllUSB(false);
 		}
 	}
 
-	if (sdhc_mode_sd)
+	if (!isWiiVC)
 		editMetaArguments();
 
 	if (!IosLoader::IsHermesIOS() && !IosLoader::IsD2X() && !Settings.SDMode)
 	{
 		Settings.USBPort = 0;
 	}
-	else if (Settings.USBPort == 1 && USBStorage2_GetPort() != Settings.USBPort && !Settings.SDMode)
+	else if (Settings.USBPort == 1 && (USBStorage2_GetPort() != Settings.USBPort) && !Settings.SDMode && !isWiiVC)
 	{
-		if (Settings.USBAutoMount == ON && !isWiiVC)
-		{
-			SetTextf("Changing USB port to %i\n", Settings.USBPort);
-			DeviceHandler::Instance()->UnMountAllUSB();
-			DeviceHandler::Instance()->MountAllUSB();
-		}
+		SetTextf("Changing USB port to %i\n", Settings.USBPort);
+		DeviceHandler::Instance()->UnMountAllUSB();
+		DeviceHandler::Instance()->MountAllUSB();
 	}
-	else if (Settings.USBPort == 2 && !Settings.SDMode)
+	else if (Settings.USBPort == 2 && !Settings.SDMode && !isWiiVC)
 	{
-		if (Settings.USBAutoMount == ON && !isWiiVC)
-		{
-			SetTextf("Mounting USB port to 1\n");
-			DeviceHandler::Instance()->MountUSBPort1();
-		}
+		SetTextf("Mounting USB port to 1\n");
+		DeviceHandler::Instance()->MountUSBPort1();
 	}
 
 	// Enable isfs permission if using Hermes v4 without AHB, or WiiU WiiVC (IOS255 fw.img)
@@ -420,23 +444,73 @@ int StartUpProcess::Execute(bool quickGameBoot)
 		gprintf("Current IOS: %d - have AHB access: %s\n", IOS_GetVersion(), AHBPROT_DISABLED ? "yes" : "no");
 	}
 
-	// We only initialize once for the whole session
+	// Initialize again
 	ISFS_Initialize();
 
 	// Check MIOS version
 	SetTextf("Checking installed MIOS\n");
 	IosLoader::GetMIOSInfo();
 
+	if (Settings.AutobootDiscs == ON)
+	{
+		Timer countDown;
+		bool skipDiscAutoboot = false;
+		s32 delay = 0;
+		u32 DiscDriveCover = 0;
+
+		Disc_Init();
+		WDVD_GetCoverStatus(&DiscDriveCover);
+		if (DiscDriveCover & 0x02)
+		{
+			drawCancel = true;
+			gprintf("Disc found in drive\n");
+			cancelTxt->SetText("Press B to cancel");
+			do
+			{
+				UpdatePads();
+				for (int i = 0; i < 4; ++i)
+					cancelBtn->Update(&userInput[i]);
+				if (cancelBtn->GetState() == STATE_CLICKED)
+				{
+					skipDiscAutoboot = true;
+					break;
+				}
+
+				delay = Settings.AutobootDiscsDelay - (int)countDown.elapsed();
+				messageTxt->SetTextf("Booting from disc in %d second%s\n", delay, delay > 1 ? "s" : "");
+				Draw();
+				usleep(50000);
+			} while (countDown.elapsed() < (float)Settings.AutobootDiscsDelay);
+
+			drawCancel = false;
+			if (skipDiscAutoboot == false)
+			{
+				messageTxt->SetTextf("Booting from disc\n");
+				Draw();
+				return AutobootDisc();
+			}
+		}
+		else
+		{
+			gprintf("No disc found in drive\n");
+			WDVD_Close();
+		}
+	}
+	return FinalizeExecute();
+}
+
+int StartUpProcess::FinalizeExecute()
+{
 	SetTextf("Loading resources\n");
 	// Do not allow banner grid mode without AHBPROT
 	// this function does nothing if it was already initiated before
-	if (!SystemMenuResources::Instance()->IsLoaded() && !SystemMenuResources::Instance()->Init()
-		&& Settings.gameDisplay == BANNERGRID_MODE)
+	if (!SystemMenuResources::Instance()->IsLoaded() && !SystemMenuResources::Instance()->Init() && Settings.gameDisplay == BANNERGRID_MODE)
 	{
 		Settings.gameDisplay = LIST_MODE;
 		Settings.GameWindowMode = GAMEWINDOW_DISC;
 	}
 
+	LoadNewTheme();
 	gprintf("\tLoading font...%s\n", Theme::LoadFont(Settings.ConfigPath) ? "done" : "failed (using default)");
 	gprintf("\tLoading theme...%s\n", Theme::Load(Settings.theme) ? "done" : "failed (using default)");
 
@@ -480,4 +554,23 @@ int StartUpProcess::QuickGameBoot(const char *gameID)
 	GameStatistics.Save();
 
 	return GameBooter::BootGame(header);
+}
+
+int StartUpProcess::AutobootDisc()
+{
+	struct discHdr *header = new struct discHdr;
+	if (Disc_Mount(header) < 0)
+	{
+		delete header;
+		header = NULL;
+		SetTextf("Error mounting disc\n");
+		sleep(3);
+		return FinalizeExecute();
+	}
+	else
+	{
+		GameStatistics.SetPlayCount(header->id, GameStatistics.GetPlayCount(header->id) + 1);
+		GameStatistics.Save();
+		return GameBooter::BootGame(header);
+	}
 }

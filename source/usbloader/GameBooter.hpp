@@ -23,14 +23,13 @@
 class GameBooter
 {
 	public:
-		static int BootGame(struct discHdr *gameHdr);
+		static int BootGame(struct discHdr *gameHdr, const s8 useOcarina = -1);
 		static int BootGCMode(struct discHdr *gameHdr);
 	private:
-		static bool exclude_game(u8 *gameid, bool skipChannels = false);
 		static void SetupAltDOL(u8 * gameID, u8 &alternatedol, u32 &alternatedoloffset);
 		static void SetupNandEmu(u8 NandEmuMode, const char *NandEmuPath, struct discHdr &gameHeader);
 		static int SetupDisc(struct discHdr &gameHeader);
-		static u32 BootPartition(char * dolpath, u8 videoselected, u8 alternatedol, u32 alternatedoloffset);
+		static u32 BootPartition(char * dolpath, u8 videoselected, u8 alternatedol, u32 alternatedoloffset, struct discHdr &gameHeader);
 		static void ShutDownDevices(int gameUSBPort);
 		static int BootDIOSMIOS(struct discHdr *gameHdr);
 		static int BootDevolution(struct discHdr *gameHdr);

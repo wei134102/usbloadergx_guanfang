@@ -22,7 +22,6 @@
 #include "libs/libruntimeiospatch/runtimeiospatch.h"
 
 extern u32 hdd_sector_size[2];
-extern u8 sdhc_mode_sd;
 
 /*
  * Buffer variables for the IOS info to avoid loading it several times
@@ -106,7 +105,7 @@ void IosLoader::GetD2XInfo()
 {
 	s32 base = 0;
 	ISFS_Initialize();
-	for (s32 i = 255; i >= 200; i--) // Prefer higher slots e.g. 251, 250 & 249
+	for (s32 i = 255; i >= 200; i--) // Prefer higher slots e.g. 251, 250, 249 & 248
 	{
 		if (IsD2XBase(i, &base))
 		{
@@ -181,7 +180,6 @@ s32 IosLoader::LoadGameCios(s32 ios)
 	ret = ReloadIosSafe(ios);
 
 	// Remount devices after reloading IOS.
-	sdhc_mode_sd = 0;
 	DeviceHandler::Instance()->MountSD();
 	if (!Settings.SDMode)
 		DeviceHandler::Instance()->MountAllUSB(true);
@@ -318,7 +316,7 @@ u8 IosLoader::GetDMLVersion(char* releaseDate)
 
 	currentDMLVersion = DML_VERSION_MIOS;
 
-	// Older versions - not working with USBloaderGX
+	// Older versions - not working with USB Loader GX
 	if(strncmp(releaseDate, "t: ", 3) == 0)
 	{
 		currentMIOS = DEFAULT_MIOS;
@@ -625,7 +623,11 @@ iosinfo_t *IosLoader::GetIOSInfo(s32 ios)
 	NandTitle::LoadFileFromNand(filepath, (u8**)&buffer, &filesize);
 
 	if (!buffer || filesize == 0)
+	{
+		if (buffer)
+			free(buffer);
 		return NULL;
+	}
 
 	if (buffer->magicword != 0x1ee7c105 || buffer->magicversion != 1)
 	{

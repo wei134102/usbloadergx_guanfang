@@ -30,7 +30,6 @@ void GetDirectoryList(const char *path, std::string &list)
 		list.append(dir.GetFilepath(i));
 }
 
-
 void GetListWBFS(std::string &list)
 {
 	char drive[11];
@@ -42,6 +41,9 @@ void GetListWBFS(std::string &list)
 		if (!usb)
 			continue;
 		portPart = DeviceHandler::PartitionToPortPartition(i);
+		const char* fs = usb->GetFSName(portPart);
+		if (fs && strncmp(fs, "WBFS", 4) == 0)
+			continue;
 		snprintf(drive, sizeof(drive), "%s:/wbfs", usb->MountName(portPart));
 		gprintf("Partition: %d - %s\n", i, drive);
 		GetDirectoryList(drive, list);
@@ -113,7 +115,10 @@ void SaveGameHeaderCache(std::vector<struct discHdr> &list)
 {
 	std::string path = std::string(Settings.GameHeaderCachePath) + EMUNAND_HEADER_CACHE_FILE;
 	if (list.empty())
+	{
 		RemoveFile(path.c_str());
+		return;
+	}
 
 	CreateSubfolder(Settings.GameHeaderCachePath);
 
@@ -121,6 +126,8 @@ void SaveGameHeaderCache(std::vector<struct discHdr> &list)
 	if (!cache)
 		return;
 
+	u32 version = GAME_HEADER_CACHE_VERSION;
+	fwrite(&version, sizeof(u32), 1, cache); // Write version first
 	fwrite((void *)&list[0], 1, list.size() * sizeof(struct discHdr), cache);
 	fclose(cache);
 }
@@ -133,17 +140,25 @@ void LoadGameHeaderCache(std::vector<struct discHdr> &list)
 	if (!cache)
 		return;
 
+	u32 version = 0;
+	if (fread(&version, sizeof(u32), 1, cache) != 1 || version != GAME_HEADER_CACHE_VERSION)
+	{
+		fclose(cache);
+		RemoveFile(path.c_str());
+		return;
+	}
+
 	struct discHdr tmp;
 	fseek(cache, 0, SEEK_END);
 	u64 fileSize = ftell(cache);
-	fseek(cache, 0, SEEK_SET);
+	u64 dataSize = fileSize - sizeof(u32);
+	fseek(cache, sizeof(u32), SEEK_SET);
 
-	u32 count = (u32)(fileSize / sizeof(struct discHdr));
+	u32 count = (u32)(dataSize / sizeof(struct discHdr));
 
 	list.reserve(count + list.size());
 	for (u32 i = 0; i < count; ++i)
 	{
-		fseek(cache, i * sizeof(struct discHdr), SEEK_SET);
 		fread((void *)&tmp, 1, sizeof(struct discHdr), cache);
 		list.push_back(tmp);
 	}
@@ -156,7 +171,10 @@ void SaveGameHeaderCache(std::vector<struct discHdr> &list, std::vector<int> &pl
 {
 	std::string path = std::string(Settings.GameHeaderCachePath) + WII_HEADER_CACHE_FILE;
 	if (list.empty() || plist.empty())
+	{
 		RemoveFile(path.c_str());
+		return;
+	}
 
 	std::vector<struct wiiCache> wiictmp;
 	struct wiiCache gtmp;
@@ -175,6 +193,8 @@ void SaveGameHeaderCache(std::vector<struct discHdr> &list, std::vector<int> &pl
 	if (!cache)
 		return;
 
+	u32 version = GAME_HEADER_CACHE_VERSION;
+	fwrite(&version, sizeof(u32), 1, cache); // Write version first
 	fwrite((void *)&wiictmp[0], 1, wiictmp.size() * sizeof(struct wiiCache), cache);
 	fclose(cache);
 }
@@ -187,18 +207,26 @@ void LoadGameHeaderCache(std::vector<struct discHdr> &list, std::vector<int> &pl
 	if (!cache)
 		return;
 
+	u32 version = 0;
+	if (fread(&version, sizeof(u32), 1, cache) != 1 || version != GAME_HEADER_CACHE_VERSION)
+	{
+		fclose(cache);
+		RemoveFile(path.c_str());
+		return;
+	}
+
 	struct wiiCache wiictmp;
 	fseek(cache, 0, SEEK_END);
 	u64 fileSize = ftell(cache);
-	fseek(cache, 0, SEEK_SET);
+	u64 dataSize = fileSize - sizeof(u32);
+	fseek(cache, sizeof(u32), SEEK_SET);
 
-	u32 count = (u32)(fileSize / sizeof(struct wiiCache));
+	u32 count = (u32)(dataSize / sizeof(struct wiiCache));
 
 	list.reserve(count + list.size());
 	plist.reserve(count + plist.size());
 	for (u32 i = 0; i < count; ++i)
 	{
-		fseek(cache, i * sizeof(struct wiiCache), SEEK_SET);
 		fread((void *)&wiictmp, 1, sizeof(struct wiiCache), cache);
 		list.push_back(wiictmp.header);
 		plist.push_back(wiictmp.part);
@@ -212,7 +240,10 @@ void SaveGameHeaderCache(std::vector<struct discHdr> &list, std::vector<std::str
 {
 	std::string path = std::string(Settings.GameHeaderCachePath) + GAMECUBE_HEADER_CACHE_FILE;
 	if (list.empty() || plist.empty())
+	{
 		RemoveFile(path.c_str());
+		return;
+	}
 
 	std::vector<struct gcCache> gcctmp;
 	struct gcCache gtmp;
@@ -221,9 +252,7 @@ void SaveGameHeaderCache(std::vector<struct discHdr> &list, std::vector<std::str
 	{
 		memset(&gtmp, 0, sizeof(gcCache));
 		gtmp.header = list[i];
-
 		strcpy((char *)gtmp.path, plist[i].c_str());
-
 		gcctmp.push_back(gtmp);
 	}
 
@@ -233,6 +262,8 @@ void SaveGameHeaderCache(std::vector<struct discHdr> &list, std::vector<std::str
 	if (!cache)
 		return;
 
+	u32 version = GAME_HEADER_CACHE_VERSION;
+	fwrite(&version, sizeof(u32), 1, cache);
 	fwrite((void *)&gcctmp[0], 1, gcctmp.size() * sizeof(struct gcCache), cache);
 	fclose(cache);
 }
@@ -245,18 +276,26 @@ void LoadGameHeaderCache(std::vector<struct discHdr> &list, std::vector<std::str
 	if (!cache)
 		return;
 
+	u32 version = 0;
+	if (fread(&version, sizeof(u32), 1, cache) != 1 || version != GAME_HEADER_CACHE_VERSION)
+	{
+		fclose(cache);
+		RemoveFile(path.c_str());
+		return;
+	}
+
 	struct gcCache gcctmp;
 	fseek(cache, 0, SEEK_END);
 	u64 fileSize = ftell(cache);
-	fseek(cache, 0, SEEK_SET);
+	u64 dataSize = fileSize - sizeof(u32);
+	fseek(cache, sizeof(u32), SEEK_SET);
 
-	u32 count = (u32)(fileSize / sizeof(struct gcCache));
+	u32 count = (u32)(dataSize / sizeof(struct gcCache));
 
 	list.reserve(count + list.size());
 	plist.reserve(count + plist.size());
 	for (u32 i = 0; i < count; ++i)
 	{
-		fseek(cache, i * sizeof(struct gcCache), SEEK_SET);
 		fread((void *)&gcctmp, 1, sizeof(struct gcCache), cache);
 		list.push_back(gcctmp.header);
 

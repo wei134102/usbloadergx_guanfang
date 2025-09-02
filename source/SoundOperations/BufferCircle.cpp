@@ -24,9 +24,8 @@
  * for WiiXplorer 2010
  ***************************************************************************/
 #include <malloc.h>
+#include "utils/tools.h"
 #include "BufferCircle.hpp"
-
-#define ALIGN32(x) (((x) + 31) & ~31)
 
 BufferCircle::BufferCircle()
 {
@@ -88,7 +87,10 @@ void BufferCircle::RemoveBuffer(int pos)
 		return;
 
 	if(SoundBuffer[pos] != NULL)
+	{
 		free(SoundBuffer[pos]);
+		SoundBuffer[pos] = NULL;
+	}
 
 	SoundBuffer.erase(SoundBuffer.begin()+pos);
 	BufferSize.erase(BufferSize.begin()+pos);

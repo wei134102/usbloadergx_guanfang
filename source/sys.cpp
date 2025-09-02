@@ -2,6 +2,7 @@
 #include <ogc/system.h>
 
 #include "mload/mload.h"
+#include "memory/memory.h"
 #include "banner/BannerAsync.h"
 #include "Controls/DeviceHandler.hpp"
 #include "FileOperations/fileops.h"
@@ -19,6 +20,7 @@
 #include "GameCube/GCGames.h"
 #include "themes/CTheme.h"
 #include "SoundOperations/SoundHandler.hpp"
+#include "SoundOperations/MusicPlayer.h"
 #include "utils/ThreadedTask.hpp"
 #include "audio.h"
 #include "lstub.h"
@@ -47,7 +49,7 @@ u8 shutdown = 0;
 u8 reset = 0;
 
 /* 
- * True if running from a WiiU Wii Virtual console channel. 
+ * True if running from a Wii U Wii Virtual console channel. 
  * Checked when initializing gamepad in input.c
  * Thanks to Fix94
  */
@@ -101,7 +103,7 @@ void AppCleanUp(void)
 	delete btnSoundClick;
 	delete btnSoundOver;
 	delete btnSoundClick2;
-	delete bgMusic;
+	delete homeout;
 	delete background;
 	delete bgImg;
 	delete mainWindow;
@@ -110,6 +112,7 @@ void AppCleanUp(void)
 
 	gettextCleanUp();
 	Theme::CleanUp();
+	MusicPlayer::DestroyInstance();
 	NewTitles::DestroyInstance();
 	ThreadedTask::DestroyInstance();
 	SoundHandler::DestroyInstance();
@@ -121,7 +124,10 @@ void AppCleanUp(void)
 
 	ResourceManager::DestroyInstance();
 
-	Wpad_Disconnect();
+	if (shutdown)
+		Wpad_Disconnect();
+	else
+		WPAD_Shutdown();
 	ISFS_Deinitialize();
 }
 
@@ -130,8 +136,9 @@ void ExitApp(void)
 	AppCleanUp();
 	WBFS_CloseAll();
 	DeviceHandler::DestroyInstance();
+	USBStorage2_Deinit();
 	USB_Deinitialize();
-	if(Settings.PlaylogUpdate)
+	if (Settings.PlaylogUpdate)
 		Playlog_Delete(); // Don't show USB Loader GX in the Wii message board
 
 	MagicPatches(0);
@@ -144,17 +151,12 @@ void Sys_Reboot(void)
 	STM_RebootSystem();
 }
 
-#define ShutdownToDefault   0
-#define ShutdownToIdle	  1
-#define ShutdownToStandby   2
-
-static void _Sys_Shutdown(int SHUTDOWN_MODE)
+static void _Sys_Shutdown(bool standby)
 {
 	ExitApp();
 
 	/* Poweroff console */
-	if ((CONF_GetShutdownMode() == CONF_SHUTDOWN_IDLE && SHUTDOWN_MODE != ShutdownToStandby) || SHUTDOWN_MODE
-			== ShutdownToIdle)
+	if (!standby)
 	{
 		s32 ret;
 
@@ -174,16 +176,19 @@ static void _Sys_Shutdown(int SHUTDOWN_MODE)
 
 void Sys_Shutdown(void)
 {
-	_Sys_Shutdown(ShutdownToDefault);
+	if (CONF_GetShutdownMode() == CONF_SHUTDOWN_IDLE)
+		_Sys_Shutdown(false);
+	else
+		_Sys_Shutdown(true);
 }
-
+// CONF check is done earlier to show/hide the button
 void Sys_ShutdownToIdle(void)
 {
-	_Sys_Shutdown(ShutdownToIdle);
+	_Sys_Shutdown(false);
 }
 void Sys_ShutdownToStandby(void)
 {
-	_Sys_Shutdown(ShutdownToStandby);
+	_Sys_Shutdown(true);
 }
 
 void Sys_LoadMenu(void)
@@ -216,7 +221,7 @@ void Sys_BackToLoader(void)
 #define HBC_HAXX	0x0001000148415858LL
 #define HBC_JODI	0x000100014A4F4449LL
 #define HBC_1_0_7	0x00010001AF1BF516LL
-#define HBC_LULZ	0x000100014c554c5aLL
+#define HBC_LULZ	0x000100014C554C5ALL
 #define HBC_OHBC	0x000100014F484243LL
 
 void Sys_LoadHBC(void)
@@ -225,7 +230,6 @@ void Sys_LoadHBC(void)
 
 	WII_Initialize();
 
-	// Try launching all known HBC titles in reversed released order
 	// Can't use HBC Stub address here as it's overwritten with forwarder's TitleID for "return to" feature.
 	WII_LaunchTitle(HBC_OHBC);
 	WII_LaunchTitle(HBC_LULZ);
@@ -308,5 +312,33 @@ void ScreenShot()
  */
 bool isWiiU()
 {
-	return (((*(vu32*)(0xCD8005A0) >> 16 ) == 0xCAFE) || isWiiVC);
+	return ((*(vu16*)0xCD8005A0 == 0xCAFE) || isWiiVC);
+}
+
+bool IsWiiVCActive()
+{
+	if (*(vu16 *)0xCD8005A0 == 0xCAFE)
+	{
+		// Thanks to FIX94
+		DCInvalidateRange((void *)0x938B2964, 4);
+		if (*(vu32 *)0x938B2964 == 0x138BB004) // r569
+			return true;
+
+		DCInvalidateRange((void *)0x938B2564, 4);
+		if (*(vu32 *)0x938B2564 == 0x138BB004) // r570
+			return true;
+		else if (*(vu32 *)0x938B2564 == 0x138BA004) // r590
+			return true;
+	}
+	return false;
+}
+
+void ResetRegion()
+{
+	u32 region = *HW_VI1CFG;
+	if (CONF_GetRegion() == CONF_REGION_JP)
+		*HW_VI1CFG = region | (1 << 17);
+	else
+		*HW_VI1CFG = region & ~(1 << 17);
+	DCFlushRange((void *)HW_VI1CFG, 4);
 }

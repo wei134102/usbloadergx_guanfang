@@ -40,7 +40,6 @@ public:
 
 	void LoadGameList(const std::string &path, std::vector<struct discHdr> &headerList, std::vector<std::string> &pathList);
 	void clear();
-
 	bool RemoveGame(const char *gameID);
 	bool RemoveSDGame(const char *gameID);
 	float GetGameSize(const char *gameID);

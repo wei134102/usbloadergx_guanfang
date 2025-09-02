@@ -1,6 +1,6 @@
 /***************************************************************************
- * Copyright (C) 2009
- * by Dimok
+ * Copyright (C) 2025 by blackb0x
+ * Copyright (C) 2009 by Dimok
  *
  * This software is provided 'as-is', without any express or implied
  * warranty. In no event will the authors be held liable for any
@@ -29,8 +29,12 @@
 #ifndef _UPDATEOPS_H_
 #define _UPDATEOPS_H_
 
+bool initNetwork();
 int UpdateGameTDB();
-int UpdateApp();
-int DownloadFileToPath(const char *url, const char *dest);
+int UpdateCheats();
+int ApplicationDownload();
+int UpdateNintendont();
+void UpdateCovers();
+int DownloadFileToPath(const char *url, const char *dest, const bool showprogress = true);
 
 #endif

@@ -1,4 +1,5 @@
 #include <ogc/machine/processor.h>
+#include <ogc/libversion.h>
 #include <gccore.h>
 #include <malloc.h>
 #include <string.h>
@@ -11,7 +12,7 @@
 #include "memory/memory.h"
 #include "memory/mem2.h"
 #include "settings/SettingsEnums.h"
-#include "svnrev.h"
+#include "version.h"
 #include "kirbypatch.h"
 
 /* GCC 11 false positives */
@@ -21,15 +22,55 @@
 #pragma GCC diagnostic ignored "-Wstringop-overread"
 #endif
 
-typedef struct _appDOL
+#define OGC_VERSION (_V_MAJOR_ * 10000 + _V_MINOR_ * 100 + _V_PATCH_)
+
+typedef struct
 {
     u8 *dst;
     int len;
 } appDOL;
 
+typedef struct
+{
+    u32 viTVMode;
+    u16 fbWidth;
+    u16 efbHeight;
+    u16 xfbHeight;
+    u16 viXOrigin;
+    u16 viYOrigin;
+    u16 viWidth;
+    u16 viHeight;
+    u32 xfbMode;
+    u8 field_rendering;
+    u8 aa;
+    u8 sample_pattern[12][2];
+    u8 vfilter[7];
+} GXRModeObjRVL;
+
 static appDOL *dolList = NULL;
 static int dolCount = 0;
 extern GXRModeObj *rmode;
+
+bool exclude_game(u8 *gameid, bool checkEmuNAND)
+{
+    // Used for games that won't work with EmuNAND saves
+    if (checkEmuNAND)
+    {
+        // Excite Truck
+        if (memcmp(gameid, "REX", 3) == 0)
+            return true;
+
+        return false;
+    }
+    // Prince of Persia, Driver, Tintin & We Dare
+    if (memcmp(gameid, "RPW", 3) == 0 || memcmp(gameid, "SPX", 3) == 0 ||
+        memcmp(gameid, "SDV", 3) == 0 || memcmp(gameid, "STN", 3) == 0 ||
+        memcmp(gameid, "SLVP41", 6) == 0)
+    {
+        return true;
+    }
+    return false;
+}
 
 void RegisterDOL(u8 *dst, int len)
 {
@@ -59,7 +100,8 @@ void ClearDOLList()
 }
 
 void gamepatches(u8 videoSelected, u8 videoPatchDol, u8 aspectForce, u8 languageChoice, u8 patchcountrystring,
-                 u8 vipatch, u8 deflicker, u8 sneekVideoPatch, u8 hooktype, u8 videoWidth, u64 returnTo, u8 privateServer, const char *serverAddr)
+                 u8 vipatch, u8 deflicker, u8 disableMotor, u8 disableSpeaker,
+                 u8 sneekVideoPatch, u8 hooktype, u8 videoWidth, u64 returnTo, u8 privateServer, const char *serverAddr)
 {
     int i;
     u8 vfilter_off[7] = {0, 0, 21, 22, 21, 0, 0};
@@ -67,10 +109,10 @@ void gamepatches(u8 videoSelected, u8 videoPatchDol, u8 aspectForce, u8 language
     u8 vfilter_medium[7] = {4, 8, 12, 16, 12, 8, 4};
     u8 vfilter_high[7] = {8, 8, 10, 12, 10, 8, 8};
 
-    // If a wip file is loaded for this game this does nothing - Dimok
     patch_nsmb((u8 *)0x80000000);
     patch_pop((u8 *)0x80000000);
     patch_kirby((u8 *)0x80000000);
+    patch_re4((u8 *)0x80000000);
 
     for (i = 0; i < dolCount; ++i)
     {
@@ -99,31 +141,40 @@ void gamepatches(u8 videoSelected, u8 videoPatchDol, u8 aspectForce, u8 language
 
         anti_002_fix(dst, len);
 
-        if (videoWidth == WIDTH_FRAMEBUFFER)
-            patch_width(dst, len);
+        if (!exclude_game((u8 *)0x80000000, false))
+        {
+            if (disableMotor)
+                motor_patch(dst, len);
+            
+            if (disableSpeaker)
+                speaker_patch(dst, len);
 
-        if (deflicker == DEFLICKER_ON_LOW)
-        {
-            patch_vfilters(dst, len, vfilter_low);
-            patch_vfilters_rogue(dst, len, vfilter_low);
-        }
-        else if (deflicker == DEFLICKER_ON_MEDIUM)
-        {
-            patch_vfilters(dst, len, vfilter_medium);
-            patch_vfilters_rogue(dst, len, vfilter_medium);
-        }
-        else if (deflicker == DEFLICKER_ON_HIGH)
-        {
-            patch_vfilters(dst, len, vfilter_high);
-            patch_vfilters_rogue(dst, len, vfilter_high);
-        }
-        else if (deflicker != DEFLICKER_AUTO)
-        {
-            patch_vfilters(dst, len, vfilter_off);
-            patch_vfilters_rogue(dst, len, vfilter_off);
-            // This might break fade and brightness effects
-            if (deflicker == DEFLICKER_OFF_EXTENDED)
-                deflicker_patch(dst, len);
+            if (videoWidth == WIDTH_FRAMEBUFFER)
+                patch_width(dst, len);
+
+            if (deflicker == DEFLICKER_ON_LOW)
+            {
+                patch_vfilters(dst, len, vfilter_low);
+                patch_vfilters_rogue(dst, len, vfilter_low);
+            }
+            else if (deflicker == DEFLICKER_ON_MEDIUM)
+            {
+                patch_vfilters(dst, len, vfilter_medium);
+                patch_vfilters_rogue(dst, len, vfilter_medium);
+            }
+            else if (deflicker == DEFLICKER_ON_HIGH)
+            {
+                patch_vfilters(dst, len, vfilter_high);
+                patch_vfilters_rogue(dst, len, vfilter_high);
+            }
+            else if (deflicker != DEFLICKER_AUTO)
+            {
+                patch_vfilters(dst, len, vfilter_off);
+                patch_vfilters_rogue(dst, len, vfilter_off);
+                // This might break fade and brightness effects
+                if (deflicker == DEFLICKER_OFF_EXTENDED)
+                    deflicker_patch(dst, len);
+            }
         }
 
         if (returnTo)
@@ -144,6 +195,14 @@ void gamepatches(u8 videoSelected, u8 videoPatchDol, u8 aspectForce, u8 language
 
         DCFlushRange(dst, len);
         ICInvalidateRange(dst, len);
+    }
+
+    // Set by the system menu on Japanese consoles
+    if (((char *)0x80000003)[0] == 'J')
+    {
+        u32 region = *HW_VI1CFG;
+        *HW_VI1CFG = region | (1 << 17);
+        DCFlushRange((void *)HW_VI1CFG, 4);
     }
 
     // ERROR 002 fix (thanks to WiiPower for sharing this)
@@ -172,6 +231,35 @@ void anti_002_fix(u8 *addr, u32 len)
     }
 }
 
+u8 *find_safe_space(u8 *addr, u32 len)
+{
+    u8 SearchPatternA[] = {0x80, 0x1E, 0x00, 0x00, 0x3C, 0x60, 0x80, 0x00, 0x83}; // Most games
+    u8 SearchPatternB[] = {0x80, 0x1F, 0x00, 0x00, 0x3C, 0x60, 0x80, 0x00, 0x83}; // Mortal Kombat
+    u8 *addr_start = addr;
+    u8 *addr_end = addr + len - sizeof(SearchPatternA);
+    while (addr_start <= addr_end)
+    {
+        if (memcmp(addr_start, SearchPatternA, sizeof(SearchPatternA)) == 0)
+        {
+            if (*(u32*)(addr_start + 36) == 0x38000001)
+            {
+                gprintf("Found safe space (A)\n");
+                return addr_start + 36;
+            }
+        }
+        else if (memcmp(addr_start, SearchPatternB, sizeof(SearchPatternB)) == 0)
+        {
+            if (*(u32*)(addr_start + 36) == 0x38000001)
+            {
+                gprintf("Found safe space (B)\n");
+                return addr_start + 36;
+            }
+        }
+        addr_start += 4;
+    }
+    return NULL;
+}
+
 void patch_width(u8 *addr, u32 len)
 {
     u8 SearchPattern[32] = {
@@ -181,6 +269,13 @@ void patch_width(u8 *addr, u32 len)
         0x40, 0x82, 0x00, 0x08, 0x54, 0xA5, 0x0C, 0x3C};
     u8 *addr_start = addr;
     u8 *addr_end = addr + len - sizeof(SearchPattern);
+    u8 *patch = find_safe_space(addr, len);
+
+    if (patch)
+        patch += 12; // Puts us at the first crclr
+    else
+        return;
+
     while (addr_start <= addr_end)
     {
         if (memcmp(addr_start, SearchPattern, sizeof(SearchPattern)) == 0)
@@ -197,21 +292,17 @@ void patch_width(u8 *addr, u32 len)
 
                     // Center the image
                     void *offset = addr_start - 0x70;
-
-                    u32 old_heap_ptr = *(u32 *)0x80003110;
-                    *(u32 *)0x80003110 = old_heap_ptr - 0x40;
-                    u32 heap_space = old_heap_ptr - 0x40;
-
+    
                     u32 org_address = (addr_start[-0x70] << 24) | (addr_start[-0x6F] << 16);
-                    *(u32 *)(heap_space + 0x00) = org_address | 4;
-                    *(u32 *)(heap_space + 0x04) = 0x200002D0 | (reg_b << 21) | (reg_a << 16);
-                    *(u32 *)(heap_space + 0x08) = 0x38000002 | (reg_a << 21);
-                    *(u32 *)(heap_space + 0x0C) = 0x7C000396 | (reg_a << 21) | (reg_b << 16) | (reg_a << 11);
+                    *(u32 *)(patch + 0x00) = org_address | 4;
+                    *(u32 *)(patch + 0x04) = 0x200002D0 | (reg_b << 21) | (reg_a << 16);
+                    *(u32 *)(patch + 0x08) = 0x38000002 | (reg_a << 21);
+                    *(u32 *)(patch + 0x0C) = 0x7C000396 | (reg_a << 21) | (reg_b << 16) | (reg_a << 11);
 
-                    *(u32 *)offset = 0x48000000 + ((heap_space - (u32)offset) & 0x3ffffff);
-                    *(u32 *)(heap_space + 0x10) = 0x48000000 + ((((u32)offset + 0x04) - (heap_space + 0x10)) & 0x3ffffff);
-
-                    gprintf("Patched resolution. Branched from 0x%x to 0x%x\n", offset, heap_space);
+                    *(u32 *)offset = 0x48000000 + (((u32)patch - (u32)offset) & 0x3ffffff);
+                    *(u32 *)(patch + 0x10) = 0x48000000 + ((((u32)offset + 0x04) - ((u32)patch + 16)) & 0x3ffffff);
+                    gprintf("Patched resolution. Branched from 0x%x to 0x%x\n", offset, patch);
+                    //hexdump((void *)patch - 32, 92);
                     return;
                 }
             }
@@ -239,6 +330,80 @@ void deflicker_patch(u8 *addr, u32 len)
             *((u32 *)addr_start + 17) = 0x48000040; // Change beq to b
             gprintf("Patched GXSetCopyFilter @ %p\n", addr_start);
             return;
+        }
+        addr_start += 4;
+    }
+}
+
+
+/** Patch GXSetDither to disable dithering **/
+/*
+// Not offered because it causes banding and posterization
+void dithering_patch(u8 *addr, u32 len)
+{
+    u32 SearchPattern[10] = {
+        0x3C80CC01, 0x38A00061,
+        0x38000000, 0x80C70220,
+        0x5066177A, 0x98A48000,
+        0x90C48000, 0x90C70220,
+        0xB0070002, 0x4E800020};
+    u8 *addr_start = addr;
+    u8 *addr_end = addr + len - sizeof(SearchPattern);
+    while (addr_start <= addr_end)
+    {
+        if (memcmp(addr_start, SearchPattern, sizeof(SearchPattern)) == 0)
+        {
+            *((u32 *)addr_start - 1) = 0x48000028;
+            gprintf("Patched GXSetDither @ %p\n", addr_start);
+            return;
+        }
+        addr_start += 4;
+    }
+}
+*/
+
+/** Patch WPADControlSpeaker **/
+void speaker_patch(u8 *addr, u32 len)
+{
+    u32 SpeakerPattern[4] = {0x9421FA00, 0x7C0802A6, 0x90010604, 0x39610600};
+
+    u8 *addr_start = addr;
+    u8 *addr_end = addr + len - sizeof(SpeakerPattern);
+    while (addr_start <= addr_end)
+    {
+        if (memcmp(addr_start, SpeakerPattern, sizeof(SpeakerPattern)) == 0)
+        {
+            *((u32 *)addr_start) = 0x4E800020;
+            gprintf("Patched speaker @ %p\n", addr_start);
+            //hexdump(addr_start, 20);
+            return;
+        }
+        addr_start += 4;
+    }
+}
+
+/** Patch WPADControlMotor **/
+void motor_patch(u8 *addr, u32 len)
+{
+    u32 MotorPatternA[2] = {0x9421FFF0, 0x7C0802A6};
+    u32 MotorPatternB[4] = {0x2C000000, 0x40820020, 0x2C1E0000, 0x40820010};
+    u32 MotorPatternC[5] = {0x48000020, 0x7C9E00D0, 0x38000001, 0x7C84F378, 0x54840FFE};
+    u8 *addr_start = addr;
+    u8 *addr_end = addr + len - sizeof(MotorPatternA) - sizeof(MotorPatternB) - sizeof(MotorPatternC);
+    while (addr_start <= addr_end)
+    {
+        if (memcmp(addr_start, MotorPatternA, sizeof(MotorPatternA)) == 0)
+        {
+            if (memcmp(addr_start + 68, MotorPatternB, sizeof(MotorPatternB)) == 0)
+            {
+                if (memcmp(addr_start + 148, MotorPatternC, sizeof(MotorPatternC)) == 0)
+                {
+                    *(u32 *)addr_start = 0x4E800020;
+                    gprintf("Patched motor @ %p\n", addr_start);
+                    //hexdump(addr_start, 20);
+                    return;
+                }
+            }
         }
         addr_start += 4;
     }
@@ -306,7 +471,7 @@ void PatchFix480p()
                 if (memcmp(a + 8 * 4, &prefix, 2) == 0)
                 {
                     offset = a + 4;
-                    hexdump(a, 30);
+                    //hexdump(a, 30);
                     patch_ptr = &patches_MKW;
                     break;
                 }
@@ -320,7 +485,7 @@ void PatchFix480p()
                 if (memcmp(a + 8 * 4, &prefix, 2) == 0)
                 {
                     offset = a + 16;
-                    hexdump(a, 30);
+                    //hexdump(a, 30);
                     patch_ptr = &patches_NSMB;
                     break;
                 }
@@ -336,19 +501,18 @@ void PatchFix480p()
         return;
     }
 
-    // If we are here, we found the offset. Lets grab some space
-    // from the heap for our patch
-    u32 old_heap_ptr = *(u32 *)0x80003110;
-    *((u32 *)0x80003110) = (old_heap_ptr - 0x20);
-    u32 heap_space = old_heap_ptr - 0x20;
+    u8 *patch = find_safe_space(addr, len);
+    if (patch)
+        patch += 32; // Puts us at "This TV format"
+    else
+        return;
 
-    gprintf("Found offset for 480p patch - create branch from 0x%x to heap (0x%x)\n", offset, heap_space);
-    hexdump(offset, 30);
+    memcpy((void *)patch, patch_ptr, 8);
 
-    memcpy((void *)heap_space, patch_ptr, 8);
-
-    *((u32 *)offset) = 0x48000000 + (((u32)(heap_space) - ((u32)(offset))) & 0x3ffffff);
-    *((u32 *)((u32)heap_space + 8)) = 0x48000000 + (((u32)((u32)offset + 4) - ((u32)(heap_space + 8))) & 0x3ffffff);
+    *(u32 *)offset = 0x48000000 + (((u32)patch - (u32)offset) & 0x3ffffff);
+    *(u32 *)(patch + 8) = 0x48000000 + ((((u32)offset + 4) - ((u32)patch + 8)) & 0x3ffffff);
+    gprintf("Applied 480p patch. Branched from 0x%x to 0x%x\n", offset, patch);
+    //hexdump((void *)patch - 32, 92);
     return;
 }
 
@@ -674,7 +838,7 @@ s8 do_new_wiimmfi()
     // let the game know the exact USB-Loader version.
     char *fmt = "USB-Loader GX v3.0 R%-21s";
     char patcher[42] = {0};
-    snprintf((char *)&patcher, 42, fmt, GetRev());
+    snprintf((char *)&patcher, 42, fmt, LOADER_REV);
     strncpy(patched, (char *)&patcher, 42);
 
     // Do the plain old patching with the string search
@@ -917,6 +1081,16 @@ void domainpatcher(void *addr, u32 len, const char *domain)
     } while (++cur < end);
 }
 
+void patch_re4(u8 *gameid)
+{
+    if (memcmp(gameid, "RB4E08", 6) == 0)
+        *(u32 *)0x8016B260 = 0x38600001;
+    else if (memcmp(gameid, "RB4P08", 6) == 0)
+        *(u32 *)0x8016B094 = 0x38600001;
+    else if (memcmp(gameid, "RB4X08", 6) == 0)
+        *(u32 *)0x8016B0C8 = 0x38600001;
+}
+
 bool patch_nsmb(u8 *gameid)
 {
     WIP_Code *CodeList = NULL;
@@ -1014,43 +1188,50 @@ bool patch_pop(u8 *gameid)
     return CodeList != NULL;
 }
 
+void patch_sdcard(u8 *gameid)
+{
+    // I might patch this at the cIOS level at some point, but this works for now
+
+    // Excite Truck
+    if (memcmp(gameid, "REXE01", 6) == 0)
+        *(u32 *)0x800b9e48 = 0x4800014c;
+    else if (memcmp(gameid, "REXP01", 6) == 0)
+        *(u32 *)0x800ba358 = 0x4800014c;
+    else if (memcmp(gameid, "REXJ01", 6) == 0)
+        *(u32 *)0x800ba404 = 0x4800014c;
+
+    // Kirby's Return to Dream Land
+    else if (memcmp(gameid, "SUKE01", 6) == 0)
+    {
+        *(u32 *)0x8022da10 = 0x60000000;
+        *(u32 *)0x8022da48 = 0x60000000;
+    }
+    else if (memcmp(gameid, "SUKP01", 6) == 0)
+    {
+        *(u32 *)0x8022e800 = 0x60000000;
+        *(u32 *)0x8022e838 = 0x60000000;
+    }
+    else if (memcmp(gameid, "SUKJ01", 6) == 0)
+    {
+        *(u32 *)0x8022c66c = 0x60000000;
+        *(u32 *)0x8022c6a4 = 0x60000000;
+    }
+    else if (memcmp(gameid, "SUKK01", 6) == 0)
+    {
+        *(u32 *)0x8022dfc4 = 0x60000000;
+        *(u32 *)0x8022dffc = 0x60000000;
+    }
+}
+
 void patch_error_codes(u8 *gameid)
 {
     // Thanks to Seeky for the MKWii gecko codes
-    // Thanks to InvoxiPlayGames for the gecko codes for the 23400 fix.
     // Reimplemented by Leseratte without the need for a code handler.
     u32 *patch_addr = 0;
     u32 *patched = 0;
 
-    // Patch error 23400 for CoD (Black Ops, Reflex, MW3) and Rock Band 3 / The Beatles
-    if (memcmp(gameid, "SC7", 3) == 0)
-    {
-        gprintf("Patching error 23400 for %s\n", gameid);
-        *(u32 *)0x8023c954 = 0x41414141;
-    }
-    else if (memcmp(gameid, "RJA", 3) == 0)
-    {
-        gprintf("Patching error 23400 for %s\n", gameid);
-        *(u32 *)0x801b838c = 0x41414141;
-    }
-    else if (memcmp(gameid, "SM8", 3) == 0)
-    {
-        gprintf("Patching error 23400 for %s\n", gameid);
-        *(u32 *)0x80238c74 = 0x41414141;
-    }
-    else if (memcmp(gameid, "SZB", 3) == 0)
-    {
-        gprintf("Patching error 23400 for %s\n", gameid);
-        *(u32 *)0x808e3b20 = 0x41414141;
-    }
-    else if (memcmp(gameid, "R9J", 3) == 0)
-    {
-        gprintf("Patching error 23400 for %s\n", gameid);
-        *(u32 *)0x808d6934 = 0x41414141;
-    }
-
     // Patch RCE vulnerability in MKWii.
-    else if (memcmp(gameid, "RMC", 3) == 0)
+    if (memcmp(gameid, "RMC", 3) == 0)
     {
         switch (gameid[3])
         {
@@ -1093,7 +1274,9 @@ void patch_error_codes(u8 *gameid)
 // viYOrigin is calculated as (576 - 528)/2 in libogc 2.0.0 for the following render modes.
 // But we need to use (574 - 528)/2 so that the render modes match the Revolution SDK.
 
-static GXRModeObj TVPal528Prog_RVL = {
+// An RGB byte was included in libogc 2.11.0, but it might be removed in a future version.
+
+GXRModeObj TVPal528Prog_RVL = {
     6,             // viDisplayMode
     640,           // fbWidth
     528,           // efbHeight
@@ -1103,6 +1286,9 @@ static GXRModeObj TVPal528Prog_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1126,7 +1312,7 @@ static GXRModeObj TVPal528Prog_RVL = {
     }
 };
 
-static GXRModeObj TVPal528ProgSoft_RVL = {
+GXRModeObj TVPal528ProgSoft_RVL = {
     6,             // viDisplayMode
     640,           // fbWidth
     528,           // efbHeight
@@ -1136,6 +1322,9 @@ static GXRModeObj TVPal528ProgSoft_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1159,7 +1348,7 @@ static GXRModeObj TVPal528ProgSoft_RVL = {
     }
 };
 
-static GXRModeObj TVPal524ProgAa_RVL = {
+GXRModeObj TVPal524ProgAa_RVL = {
     6,             // viDisplayMode
     640,           // fbWidth
     264,           // efbHeight
@@ -1169,6 +1358,9 @@ static GXRModeObj TVPal524ProgAa_RVL = {
     640,           // viWidth
     524,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_TRUE,       // aa
 
@@ -1192,7 +1384,7 @@ static GXRModeObj TVPal524ProgAa_RVL = {
     }
 };
 
-static GXRModeObj TVPal528Int_RVL = {
+GXRModeObj TVPal528Int_RVL = {
     4,             // viDisplayMode
     640,           // fbWidth
     528,           // efbHeight
@@ -1202,6 +1394,9 @@ static GXRModeObj TVPal528Int_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_DF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1225,7 +1420,7 @@ static GXRModeObj TVPal528Int_RVL = {
     }
 };
 
-static GXRModeObj TVPal528IntDf_RVL = {
+GXRModeObj TVPal528IntDf_RVL = {
     4,             // viDisplayMode
     640,           // fbWidth
     528,           // efbHeight
@@ -1235,6 +1430,9 @@ static GXRModeObj TVPal528IntDf_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_DF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1258,7 +1456,7 @@ static GXRModeObj TVPal528IntDf_RVL = {
     }
 };
 
-static GXRModeObj TVEurgb60Hz480Prog_RVL = {
+GXRModeObj TVEurgb60Hz480Prog_RVL = {
     22,            // viDisplayMode
     640,           // fbWidth
     480,           // efbHeight
@@ -1268,6 +1466,9 @@ static GXRModeObj TVEurgb60Hz480Prog_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_TRUE,       // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1291,7 +1492,7 @@ static GXRModeObj TVEurgb60Hz480Prog_RVL = {
     }
 };
 
-static GXRModeObj TVEurgb60Hz480ProgSoft_RVL = {
+GXRModeObj TVEurgb60Hz480ProgSoft_RVL = {
     22,            // viDisplayMode
     640,           // fbWidth
     480,           // efbHeight
@@ -1301,6 +1502,9 @@ static GXRModeObj TVEurgb60Hz480ProgSoft_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_TRUE,       // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1324,7 +1528,7 @@ static GXRModeObj TVEurgb60Hz480ProgSoft_RVL = {
     }
 };
 
-static GXRModeObj TVEurgb60Hz480ProgAa_RVL = {
+GXRModeObj TVEurgb60Hz480ProgAa_RVL = {
     22,            // viDisplayMode
     640,           // fbWidth
     242,           // efbHeight
@@ -1334,6 +1538,9 @@ static GXRModeObj TVEurgb60Hz480ProgAa_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_TRUE,       // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_TRUE,       // aa
 
@@ -1357,7 +1564,7 @@ static GXRModeObj TVEurgb60Hz480ProgAa_RVL = {
     }
 };
 
-static GXRModeObj TVPal524IntAa_RVL = {
+GXRModeObj TVPal524IntAa_RVL = {
     4,             // viDisplayMode
     640,           // fbWidth
     264,           // efbHeight
@@ -1367,6 +1574,9 @@ static GXRModeObj TVPal524IntAa_RVL = {
     640,           // viWidth
     524,           // viHeight
     VI_XFBMODE_DF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_TRUE,       // aa
 
@@ -1390,7 +1600,7 @@ static GXRModeObj TVPal524IntAa_RVL = {
     }
 };
 
-static GXRModeObj TVPal264Int_RVL = {
+GXRModeObj TVPal264Int_RVL = {
     4,             // viDisplayMode
     640,           // fbWidth
     264,           // efbHeight
@@ -1400,6 +1610,9 @@ static GXRModeObj TVPal264Int_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_TRUE,       // field_rendering
     GX_FALSE,      // aa
 
@@ -1423,7 +1636,7 @@ static GXRModeObj TVPal264Int_RVL = {
     }
 };
 
-static GXRModeObj TVPal264IntAa_RVL = {
+GXRModeObj TVPal264IntAa_RVL = {
     4,             // viDisplayMode
     640,           // fbWidth
     264,           // efbHeight
@@ -1433,6 +1646,9 @@ static GXRModeObj TVPal264IntAa_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_TRUE,       // field_rendering
     GX_TRUE,       // aa
 
@@ -1456,7 +1672,7 @@ static GXRModeObj TVPal264IntAa_RVL = {
     }
 };
 
-static GXRModeObj TVPal264Ds_RVL = {
+GXRModeObj TVPal264Ds_RVL = {
     5,             // viDisplayMode
     640,           // fbWidth
     264,           // efbHeight
@@ -1466,6 +1682,9 @@ static GXRModeObj TVPal264Ds_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1489,7 +1708,7 @@ static GXRModeObj TVPal264Ds_RVL = {
     }
 };
 
-static GXRModeObj TVPal264DsAa_RVL = {
+GXRModeObj TVPal264DsAa_RVL = {
     5,             // viDisplayMode
     640,           // fbWidth
     264,           // efbHeight
@@ -1499,6 +1718,9 @@ static GXRModeObj TVPal264DsAa_RVL = {
     640,           // viWidth
     528,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_TRUE,       // aa
 
@@ -1522,7 +1744,7 @@ static GXRModeObj TVPal264DsAa_RVL = {
     }
 };
 
-static GXRModeObj TVMpal240Int_RVL = {
+GXRModeObj TVMpal240Int_RVL = {
     8,             // viDisplayMode
     640,           // fbWidth
     240,           // efbHeight
@@ -1532,6 +1754,9 @@ static GXRModeObj TVMpal240Int_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_TRUE,       // field_rendering
     GX_FALSE,      // aa
 
@@ -1555,7 +1780,7 @@ static GXRModeObj TVMpal240Int_RVL = {
     }
 };
 
-static GXRModeObj TVMpal240IntAa_RVL = {
+GXRModeObj TVMpal240IntAa_RVL = {
     8,             // viDisplayMode
     640,           // fbWidth
     240,           // efbHeight
@@ -1565,6 +1790,9 @@ static GXRModeObj TVMpal240IntAa_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_TRUE,       // field_rendering
     GX_TRUE,       // aa
 
@@ -1588,7 +1816,7 @@ static GXRModeObj TVMpal240IntAa_RVL = {
     }
 };
 
-static GXRModeObj TVMpal480Int_RVL = {
+GXRModeObj TVMpal480Int_RVL = {
     8,             // viDisplayMode
     640,           // fbWidth
     480,           // efbHeight
@@ -1598,6 +1826,9 @@ static GXRModeObj TVMpal480Int_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_DF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1621,7 +1852,7 @@ static GXRModeObj TVMpal480Int_RVL = {
     }
 };
 
-static GXRModeObj TVMpal480ProgSoft_RVL = {
+GXRModeObj TVMpal480ProgSoft_RVL = {
     10,            // viDisplayMode
     640,           // fbWidth
     480,           // efbHeight
@@ -1631,6 +1862,9 @@ static GXRModeObj TVMpal480ProgSoft_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_FALSE,      // aa
 
@@ -1654,7 +1888,7 @@ static GXRModeObj TVMpal480ProgSoft_RVL = {
     }
 };
 
-static GXRModeObj TVMpal480ProgAa_RVL = {
+GXRModeObj TVMpal480ProgAa_RVL = {
     10,            // viDisplayMode
     640,           // fbWidth
     242,           // efbHeight
@@ -1664,6 +1898,9 @@ static GXRModeObj TVMpal480ProgAa_RVL = {
     640,           // viWidth
     480,           // viHeight
     VI_XFBMODE_SF, // xFBmode
+#if OGC_VERSION == 21100
+    GX_FALSE,      // rgb
+#endif
     GX_FALSE,      // field_rendering
     GX_TRUE,       // aa
 
@@ -1847,7 +2084,7 @@ static u8 PATTERN_AA[12][2] = {
     {9, 2}, {3, 6}, {9, 10}
 };
 
-static bool compare_videomodes(GXRModeObj *mode1, GXRModeObj *mode2)
+static bool compare_videomodes_rvl(GXRModeObj *mode1, GXRModeObjRVL *mode2)
 {
     if (mode1->viTVMode != mode2->viTVMode || mode1->fbWidth != mode2->fbWidth || mode1->efbHeight != mode2->efbHeight
             || mode1->xfbHeight != mode2->xfbHeight || mode1->viXOrigin != mode2->viXOrigin || mode1->viYOrigin
@@ -1881,7 +2118,41 @@ static bool compare_videomodes(GXRModeObj *mode1, GXRModeObj *mode2)
     }
 }
 
-static void patch_videomode(GXRModeObj *mode1, GXRModeObj *mode2)
+static bool compare_videomodes_ogc(GXRModeObj *mode1, GXRModeObj *mode2)
+{
+    if (mode1->viTVMode != mode2->viTVMode || mode1->fbWidth != mode2->fbWidth || mode1->efbHeight != mode2->efbHeight
+            || mode1->xfbHeight != mode2->xfbHeight || mode1->viXOrigin != mode2->viXOrigin || mode1->viYOrigin
+            != mode2->viYOrigin || mode1->viWidth != mode2->viWidth || mode1->viHeight != mode2->viHeight
+            || mode1->xfbMode != mode2->xfbMode || mode1->field_rendering != mode2->field_rendering || mode1->aa
+            != mode2->aa || mode1->sample_pattern[0][0] != mode2->sample_pattern[0][0] || mode1->sample_pattern[1][0]
+            != mode2->sample_pattern[1][0] || mode1->sample_pattern[2][0] != mode2->sample_pattern[2][0]
+            || mode1->sample_pattern[3][0] != mode2->sample_pattern[3][0] || mode1->sample_pattern[4][0]
+            != mode2->sample_pattern[4][0] || mode1->sample_pattern[5][0] != mode2->sample_pattern[5][0]
+            || mode1->sample_pattern[6][0] != mode2->sample_pattern[6][0] || mode1->sample_pattern[7][0]
+            != mode2->sample_pattern[7][0] || mode1->sample_pattern[8][0] != mode2->sample_pattern[8][0]
+            || mode1->sample_pattern[9][0] != mode2->sample_pattern[9][0] || mode1->sample_pattern[10][0]
+            != mode2->sample_pattern[10][0] || mode1->sample_pattern[11][0] != mode2->sample_pattern[11][0]
+            || mode1->sample_pattern[0][1] != mode2->sample_pattern[0][1] || mode1->sample_pattern[1][1]
+            != mode2->sample_pattern[1][1] || mode1->sample_pattern[2][1] != mode2->sample_pattern[2][1]
+            || mode1->sample_pattern[3][1] != mode2->sample_pattern[3][1] || mode1->sample_pattern[4][1]
+            != mode2->sample_pattern[4][1] || mode1->sample_pattern[5][1] != mode2->sample_pattern[5][1]
+            || mode1->sample_pattern[6][1] != mode2->sample_pattern[6][1] || mode1->sample_pattern[7][1]
+            != mode2->sample_pattern[7][1] || mode1->sample_pattern[8][1] != mode2->sample_pattern[8][1]
+            || mode1->sample_pattern[9][1] != mode2->sample_pattern[9][1] || mode1->sample_pattern[10][1]
+            != mode2->sample_pattern[10][1] || mode1->sample_pattern[11][1] != mode2->sample_pattern[11][1]
+            || mode1->vfilter[0] != mode2->vfilter[0] || mode1->vfilter[1] != mode2->vfilter[1] || mode1->vfilter[2]
+            != mode2->vfilter[2] || mode1->vfilter[3] != mode2->vfilter[3] || mode1->vfilter[4] != mode2->vfilter[4]
+            || mode1->vfilter[5] != mode2->vfilter[5] || mode1->vfilter[6] != mode2->vfilter[6])
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
+
+static void patch_videomode(GXRModeObjRVL *mode1, GXRModeObj *mode2)
 {
     mode1->viTVMode = mode2->viTVMode;
     if (mode1->viWidth == 640 || mode1->viWidth == 708)
@@ -1939,17 +2210,17 @@ static bool Search_and_patch_Video_Modes(u8 *Address, u32 Size, GXRModeObj *Tabl
     bool found = 0;
     u32 i, j;
 
-    while (Size >= sizeof(GXRModeObj))
+    while (Size >= sizeof(GXRModeObjRVL))
     {
         for (i = 0; Table[i]; i += 2)
         {
-            if (compare_videomodes(Table[i], (GXRModeObj *)Addr))
+            if (compare_videomodes_rvl(Table[i], (GXRModeObjRVL *)Addr))
             {
                 u8 current_vmode = 0;
                 u8 target_vmode = 0;
                 for (j = 0; j < sizeof(vmodes) / sizeof(vmodes[0]); j++)
                 {
-                    if (compare_videomodes(Table[i], vmodes[j]))
+                    if (compare_videomodes_ogc(Table[i], vmodes[j]))
                     {
                         current_vmode = j;
                         break;
@@ -1957,18 +2228,18 @@ static bool Search_and_patch_Video_Modes(u8 *Address, u32 Size, GXRModeObj *Tabl
                 }
                 for (j = 0; j < sizeof(vmodes) / sizeof(vmodes[0]); j++)
                 {
-                    if (compare_videomodes(Table[i + 1], vmodes[j]))
+                    if (compare_videomodes_ogc(Table[i + 1], vmodes[j]))
                     {
                         target_vmode = j;
                         break;
                     }
                 }
 
-                gprintf("Video mode found in dol: %s, replaced by: %s \n", vmodes_name[current_vmode], vmodes_name[target_vmode]);
+                gprintf("%s replaced with %s \n", vmodes_name[current_vmode], vmodes_name[target_vmode]);
                 found = 1;
-                patch_videomode((GXRModeObj *)Addr, Table[i + 1]);
-                Addr += (sizeof(GXRModeObj) - 4);
-                Size -= (sizeof(GXRModeObj) - 4);
+                patch_videomode((GXRModeObjRVL *)Addr, Table[i + 1]);
+                Addr += (sizeof(GXRModeObjRVL) - 4);
+                Size -= (sizeof(GXRModeObjRVL) - 4);
                 break;
             }
         }
@@ -1984,9 +2255,9 @@ static bool Search_and_patch_Video_Modes(u8 *Address, u32 Size, GXRModeObj *Tabl
 void patch_vfilters(u8 *addr, u32 len, u8 *vfilter)
 {
     u8 *addr_start = addr;
-    while (len >= sizeof(GXRModeObj))
+    while (len >= sizeof(GXRModeObjRVL))
     {
-        GXRModeObj *vidmode = (GXRModeObj *)addr_start;
+        GXRModeObjRVL *vidmode = (GXRModeObjRVL *)addr_start;
         if ((memcmp(vidmode->sample_pattern, PATTERN, 24) == 0 || memcmp(vidmode->sample_pattern, PATTERN_AA, 24) == 0) &&
             (vidmode->fbWidth == 640 || vidmode->fbWidth == 608 || vidmode->fbWidth == 512) &&
             (vidmode->field_rendering == 0 || vidmode->field_rendering == 1) &&
@@ -1996,8 +2267,8 @@ void patch_vfilters(u8 *addr, u32 len, u8 *vfilter)
                     vidmode->vfilter[0], vidmode->vfilter[1], vidmode->vfilter[2], vidmode->vfilter[3],
                     vidmode->vfilter[4], vidmode->vfilter[5], vidmode->vfilter[6], addr_start);
             memcpy(vidmode->vfilter, vfilter, 7);
-            addr_start += (sizeof(GXRModeObj) - 4);
-            len -= (sizeof(GXRModeObj) - 4);
+            addr_start += (sizeof(GXRModeObjRVL) - 4);
+            len -= (sizeof(GXRModeObjRVL) - 4);
         }
         addr_start += 4;
         len -= 4;
@@ -2046,23 +2317,23 @@ static bool Search_and_patch_Video_To(void *Address, u32 Size, GXRModeObj *Table
     u8 target_vmode = 0;
     for (i = 0; i < sizeof(vmodes) / sizeof(vmodes[0]); i++)
     {
-        if (compare_videomodes(Table[i], rmode))
+        if (compare_videomodes_ogc(Table[i], rmode))
         {
             target_vmode = i;
             break;
         }
     }
 
-    while (Size >= sizeof(GXRModeObj))
+    while (Size >= sizeof(GXRModeObjRVL))
     {
-        if ((memcmp(((GXRModeObj *)Addr)->sample_pattern, PATTERN, 24) == 0 || memcmp(((GXRModeObj *)Addr)->sample_pattern, PATTERN_AA, 24) == 0) &&
-            (((GXRModeObj *)Addr)->fbWidth == 640 || ((GXRModeObj *)Addr)->fbWidth == 608 || ((GXRModeObj *)Addr)->fbWidth == 512) &&
-            (((GXRModeObj *)Addr)->field_rendering == 0 || ((GXRModeObj *)Addr)->field_rendering == 1) &&
-            (((GXRModeObj *)Addr)->aa == 0 || ((GXRModeObj *)Addr)->aa == 1)
+        if ((memcmp(((GXRModeObjRVL *)Addr)->sample_pattern, PATTERN, 24) == 0 || memcmp(((GXRModeObjRVL *)Addr)->sample_pattern, PATTERN_AA, 24) == 0) &&
+            (((GXRModeObjRVL *)Addr)->fbWidth == 640 || ((GXRModeObjRVL *)Addr)->fbWidth == 608 || ((GXRModeObjRVL *)Addr)->fbWidth == 512) &&
+            (((GXRModeObjRVL *)Addr)->field_rendering == 0 || ((GXRModeObjRVL *)Addr)->field_rendering == 1) &&
+            (((GXRModeObjRVL *)Addr)->aa == 0 || ((GXRModeObjRVL *)Addr)->aa == 1)
         )
         {
             // display found video mode patterns
-            GXRModeObj *vidmode = (GXRModeObj *)Addr;
+            GXRModeObjRVL *vidmode = (GXRModeObjRVL *)Addr;
             gprintf("GXRModeObj \t%08x %04x %04x %04x %04x %04x %04x %04x %08x %04x %04x "
                     "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x "
                     "%02x%02x%02x%02x%02x%02x%02x \n",
@@ -2078,22 +2349,22 @@ static bool Search_and_patch_Video_To(void *Address, u32 Size, GXRModeObj *Table
             found = 0;
             for (i = 0; i < sizeof(vmodes) / sizeof(vmodes[0]); i++)
             {
-                if (compare_videomodes(Table[i], (GXRModeObj *)Addr))
+                if (compare_videomodes_rvl(Table[i], (GXRModeObjRVL *)Addr))
                 {
                     found = 1;
-                    gprintf("Video mode found in dol: %s, replaced by: %s \n", vmodes_name[i], vmodes_name[target_vmode]);
-                    patch_videomode((GXRModeObj *)Addr, rmode);
-                    Addr += (sizeof(GXRModeObj) - 4);
-                    Size -= (sizeof(GXRModeObj) - 4);
+                    gprintf("%s replaced with %s \n", vmodes_name[i], vmodes_name[target_vmode]);
+                    patch_videomode((GXRModeObjRVL *)Addr, rmode);
+                    Addr += (sizeof(GXRModeObjRVL) - 4);
+                    Size -= (sizeof(GXRModeObjRVL) - 4);
                     break;
                 }
             }
             if (patchAll && !found)
             {
-                gprintf("Video mode found in dol: Unknown, replaced by: %s \n", vmodes_name[target_vmode]);
-                patch_videomode((GXRModeObj *)Addr, rmode);
-                Addr += (sizeof(GXRModeObj) - 4);
-                Size -= (sizeof(GXRModeObj) - 4);
+                gprintf("Unknown replaced with %s \n", vmodes_name[target_vmode]);
+                patch_videomode((GXRModeObjRVL *)Addr, rmode);
+                Addr += (sizeof(GXRModeObjRVL) - 4);
+                Size -= (sizeof(GXRModeObjRVL) - 4);
             }
         }
         Addr += 4;
