@@ -39,7 +39,7 @@ GuiPluginBrowser::GuiPluginBrowser(int w, int h)// int offset
 	scrollBar.SetPageSize(pagesize);
 	scrollBar.SetSelectedItem(selectedItem);
 	scrollBar.SetSelectedIndex(listOffset);
-	scrollBar.SetEntrieCount(m_plugin.PluginsSize());
+	scrollBar.SetEntryCount(m_plugin.PluginsSize());
 	scrollBar.listChanged.connect(this, &GuiPluginBrowser::onListChange);
 
 	bgPlugins = Resources::GetImageData("bg_options.png");
@@ -254,7 +254,7 @@ void GuiPluginBrowser::Update(GuiTrigger * t)
 	scrollBar.SetPageSize(pagesize);
 	scrollBar.SetSelectedItem(selectedItem);
 	scrollBar.SetSelectedIndex(listOffset);
-	scrollBar.SetEntrieCount(m_plugin.PluginsSize());
+	scrollBar.SetEntryCount(m_plugin.PluginsSize());
 
 	if (updateCB) updateCB(this);
 }
