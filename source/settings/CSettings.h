@@ -90,6 +90,15 @@ class CSettings
 		char GameCubeSDPath[100];
 		char DEVOLoaderPath[100];
 		char NINLoaderPath[100];
+		char PluginsPath[100];
+		char enabledPlugin[9];
+		char pluginMergeGroup[32];
+		short pluginShowMerged;
+		short pluginControllerSwitch;
+		short pluginLogEnabled;
+		short pluginMode;
+		short Plugin3DCvrs;
+		short PluginRomPart;
 		char CustomAddress[300];
 		char URL_Banners[300];
 		char URL_Covers2D[300];

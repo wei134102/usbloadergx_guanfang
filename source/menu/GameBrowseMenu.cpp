@@ -40,6 +40,8 @@
 #include "menus.h"
 #include "wpad.h"
 #include "sys.h"
+#include "plugin/plugin.hpp"
+#include "plugin/PluginPrompt.hpp"
 
 struct discHdr *dvdheader = NULL;
 bool allowUsedSpaceTxtUpdate = false;
@@ -186,6 +188,22 @@ GameBrowseMenu::GameBrowseMenu()
 	homeBtnImgCustom->SetWidescreen(Settings.widescreen);
 	homeBtnImgCustomOver = new GuiImage(btnhomecustomOver);
 	homeBtnImgCustomOver->SetWidescreen(Settings.widescreen);
+
+	imgPluginMode = Resources::GetImageData("pluginMode.png");
+	imgPluginMode_gray = Resources::GetImageData("pluginMode_gray.png");
+	homeBtnImgPlugin = new GuiImage(imgPluginMode ? imgPluginMode : btnLoaderMode);
+	homeBtnImgPlugin->SetWidescreen(Settings.widescreen);
+	homeBtnImgPluginOver = new GuiImage(imgPluginMode ? imgPluginMode : btnLoaderModeOver);
+	homeBtnImgPluginOver->SetWidescreen(Settings.widescreen);
+
+	pluginNameTxt = new GuiText((char *)NULL, 18, thColor("r=55 g=190 b=237 a=255 - game count color"));
+	pluginNameTxt->SetAlignment(thAlign("center - game count align hor"), thAlign("top - game count align ver"));
+	pluginNameTxt->SetPosition(thInt("0 - game count pos x"), thInt("440 - game count pos y"));
+	pluginNameTxt->SetVisible(false);
+
+	m_plugin.Init();
+	m_plugin.createPluginsList();
+
 	homeBtn = new GuiButton(homeBtnImg, homeBtnImgOver, 0, 3,
 							thInt("489 - home menu btn pos x"), thInt("371 - home menu btn pos y"),
 							trigA, btnSoundOver, btnSoundClick2, 1, homeBtnTT, 15, -30, 1, 5);
@@ -518,6 +536,10 @@ GameBrowseMenu::~GameBrowseMenu()
 	delete homeBtnImgEmunandOver;
 	delete homeBtnImgCustom;
 	delete homeBtnImgCustomOver;
+	delete homeBtnImgPlugin;
+	delete homeBtnImgPluginOver;
+	delete imgPluginMode;
+	delete imgPluginMode_gray;
 	delete poweroffBtnImg;
 	delete poweroffBtnImgOver;
 	delete sdcardImg;
@@ -579,6 +601,7 @@ GameBrowseMenu::~GameBrowseMenu()
 	delete homebrewBtn;
 	delete listCoverBtn;
 	delete DownloadBtn;
+	delete pluginNameTxt;
 
 	delete installBtnTT;
 	delete settingsBtnTT;
@@ -760,6 +783,22 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
 			homeBtn->SetImage(homeBtnImgEmunand);
 			homeBtn->SetImageOver(homeBtnImgEmunandOver);
 		}
+		else if (Settings.GameDisplayType == DISP_PLUGIN)
+		{
+			if (m_plugin.PluginsSize() > 0)
+			{
+				u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
+				s8 pos = m_plugin.GetPluginPosition(curMagic);
+				if (pos < 0) pos = 0;
+				homeBtnTT->SetText(fmt("%s: %s", tr("Displaying Plugin games"), m_plugin.GetPluginName((u8)pos).toUTF8().c_str()));
+			}
+			else
+			{
+				homeBtnTT->SetText(tr("Displaying Plugin games"));
+			}
+			homeBtn->SetImage(homeBtnImgPlugin);
+			homeBtn->SetImageOver(homeBtnImgPluginOver);
+		}
 		else if (Settings.GameDisplayType == DISP_CUSTOM)
 		{
 			homeBtnTT->SetText(tr("Displaying a custom selection"));
@@ -805,6 +844,23 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
 			LoadCover(gameList[0]);
 		if (gameList.size() > 0)
 			Append(gameCoverImg);
+
+		if ((Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode) && m_plugin.PluginsSize() > 0)
+		{
+			u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
+			s8 pos = m_plugin.GetPluginPosition(curMagic);
+			if (pos < 0) pos = 0;
+			pluginNameTxt->SetText(m_plugin.GetPluginName((u8)pos).c_str());
+			pluginNameTxt->SetPosition(Settings.widescreen ? 40 : 20, 360);
+			pluginNameTxt->SetVisible(true);
+			Append(pluginNameTxt);
+		}
+		else
+		{
+			pluginNameTxt->SetVisible(false);
+			Remove(pluginNameTxt);
+		}
+
 		listCoverBtn->SetSize(160, 224);
 		listBtn->SetImage(listBtnImg);
 		listBtn->SetImageOver(listBtnImg);
@@ -1137,6 +1193,50 @@ int GameBrowseMenu::MainLoop()
 	UpdateClock();
 	CheckDiscSlotUpdate();
 
+	// 插件模式下手柄快捷切换插件（Wiimote +/- 或 NGC L/R）
+	if ((Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode) && Settings.pluginControllerSwitch && m_plugin.PluginsSize() > 0)
+	{
+		static u64 lastPluginSwitchTime = 0;
+		static u32 pluginSwitchLastHeld = 0;
+		u64 currentTime = gettime();
+		const u64 PLUGIN_SWITCH_COOLDOWN = 500000; // 500ms
+
+		if (diff_nsec(currentTime, lastPluginSwitchTime) > PLUGIN_SWITCH_COOLDOWN)
+		{
+			u32 wpad_h = 0, pad_h = 0;
+			for (int i = 0; i < 4; i++)
+			{
+				wpad_h |= userInput[i].wpad.btns_h;
+				pad_h  |= userInput[i].pad.btns_h;
+			}
+			u32 plus_held  = (wpad_h & (WPAD_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_PLUS)) ? 1u : 0u;
+			u32 minus_held = (wpad_h & (WPAD_BUTTON_MINUS | WPAD_CLASSIC_BUTTON_MINUS)) ? 2u : 0u;
+			u32 l_held     = (pad_h & PAD_TRIGGER_L) ? 4u : 0u;
+			u32 r_held     = (pad_h & PAD_TRIGGER_R) ? 8u : 0u;
+			u32 cur_held   = plus_held | minus_held | l_held | r_held;
+
+			int delta = 0;
+			if ((plus_held && !(pluginSwitchLastHeld & 1)) || (r_held && !(pluginSwitchLastHeld & 8))) delta = 1;
+			else if ((minus_held && !(pluginSwitchLastHeld & 2)) || (l_held && !(pluginSwitchLastHeld & 4))) delta = -1;
+
+			pluginSwitchLastHeld = cur_held;
+
+			if (delta != 0)
+			{
+				lastPluginSwitchTime = currentTime;
+				u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
+				s8 pos = m_plugin.GetPluginPosition(curMagic);
+				if (pos < 0) pos = 0;
+				pos = (pos + delta + m_plugin.PluginsSize()) % m_plugin.PluginsSize();
+				snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic((u8)pos));
+				Settings.Save();
+				gameSelectedOld = -1;
+				gameList.FilterList();
+				ReloadBrowser();
+			}
+		}
+	}
+
 	if (poweroffBtn->GetState() == STATE_CLICKED)
 	{
 		gprintf("\tpoweroffBtn clicked\n");
@@ -1194,17 +1294,29 @@ int GameBrowseMenu::MainLoop()
 				Settings.GameDisplayType = DISP_EMUNAND;
 			else if (Settings.GameDisplayType == DISP_EMUNAND)
 			{
+				Settings.GameDisplayType = DISP_PLUGIN;
+				Settings.pluginMode = ON;
+				if (m_plugin.PluginsSize() > 0 && Settings.enabledPlugin[0] == 0)
+				{
+					snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic(0));
+				}
+			}
+			else if (Settings.GameDisplayType == DISP_PLUGIN)
+			{
 				Settings.GameDisplayType = DISP_CUSTOM;
+				Settings.pluginMode = OFF;
 				if (Settings.LoaderMode & MODE_WIIGAMES)
 					ReloadWiiGames(true);
 			}
 			else if (Settings.GameDisplayType == DISP_CUSTOM)
 			{
 				Settings.GameDisplayType = DISP_WII;
+				Settings.pluginMode = OFF;
 				ReloadWiiGames(true);
 			}
 			wString oldFilter(gameList.GetCurrentFilter());
-			GameTitles.LoadTitlesFromGameTDB(Settings.titlestxt_path);
+			if (Settings.GameDisplayType != DISP_PLUGIN)
+				GameTitles.LoadTitlesFromGameTDB(Settings.titlestxt_path);
 			gameList.FilterList(oldFilter.c_str());
 			ReloadBrowser();
 		}
@@ -1639,6 +1751,33 @@ int GameBrowseMenu::MainLoop()
 		if (!Settings.godmode && (Settings.ParentalBlocks & BLOCK_GAME_SOURCES_BUTTON))
 		{
 			WindowPrompt(tr("Permission denied."), tr("Console must be unlocked for this option."), tr("OK"));
+			loaderModeBtn->ResetState();
+			return returnMenu;
+		}
+
+		if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+		{
+			mainWindow->SetState(STATE_DISABLED);
+			PluginPrompt promptMenu;
+			promptMenu.SetAlignment(thAlign("center - plugin prompt align hor"), thAlign("middle - plugin prompt align ver"));
+			promptMenu.SetPosition(thInt("0 - plugin prompt pos x"), thInt("0 - plugin prompt pos y"));
+			promptMenu.SetEffect(EFFECT_FADE, 20);
+			mainWindow->Append(&promptMenu);
+
+			int choice = promptMenu.Show();
+
+			promptMenu.SetEffect(EFFECT_FADE, -20);
+			while (promptMenu.GetEffect() > 0) usleep(100);
+			mainWindow->Remove(&promptMenu);
+			mainWindow->SetState(STATE_DEFAULT);
+			if (choice >= 0 && choice < m_plugin.PluginsSize())
+			{
+				snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic((u8)choice));
+				Settings.Save();
+				gameSelectedOld = -1;
+				gameList.FilterList();
+				ReloadBrowser();
+			}
 			loaderModeBtn->ResetState();
 			return returnMenu;
 		}

@@ -59,6 +59,7 @@
 #include "FileOperations/fileops.h"
 #include "prompts/ProgressWindow.h"
 #include "neek.hpp"
+#include "plugin/plugin.hpp"
 #include "lstub.h"
 #include "xml/GameTDB.hpp"
 #include "wad/nandtitle.h"
@@ -280,6 +281,9 @@ int GameBooter::BootGame(struct discHdr *gameHdr, const s8 useOcarina)
 	ocarinaAnswer = useOcarina;
 	struct discHdr gameHeader;
 	memcpy(&gameHeader, gameHdr, sizeof(struct discHdr));
+
+	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+		return m_plugin.BootPluginRom(&gameHeader);
 
 	gprintf("Boot Game: %s (%.6s)\n", gameHeader.title, gameHeader.id);
 

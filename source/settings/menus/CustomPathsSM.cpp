@@ -141,6 +141,9 @@ void CustomPathsSM::SetOptionValues()
 	//! Settings: Cache BNR Files Path
 	Options->SetValue(Idx++, Settings.BNRCachePath);
 
+	//! Settings: Plugin Files Path
+	Options->SetValue(Idx++, Settings.PluginsPath);
+
 	//! Settings: Cache Path
 	Options->SetValue(Idx++, Settings.GameHeaderCachePath);
 }
@@ -361,6 +364,13 @@ int CustomPathsSM::GetMenuInternal()
 	{
 		titleTxt->SetText(tr( "Cache BNR Files Path" ));
 		ChangePath(Settings.BNRCachePath, sizeof(Settings.BNRCachePath));
+	}
+
+	//! Settings: Plugin Files Path
+	else if (ret == ++Idx)
+	{
+		titleTxt->SetText(tr( "Plugin Files Path" ));
+		ChangePath(Settings.PluginsPath, sizeof(Settings.PluginsPath));
 	}
 
 	//! Settings: Cache Path

@@ -199,11 +199,14 @@ GameWindow::GameWindow(GameBrowseMenu *m, struct discHdr *header)
 	detailsBtn->SetEffectGrow();
 
 	Append(dialogBoxImg);
-	if (Settings.ShowPlayCount) Append(playcntTxt);
+	if (Settings.ShowPlayCount && !Settings.pluginMode && Settings.GameDisplayType != DISP_PLUGIN) Append(playcntTxt);
 	Append(backBtn);
-	Append(detailsBtn);
+	if (!Settings.pluginMode && Settings.GameDisplayType != DISP_PLUGIN)
+	{
+		Append(detailsBtn);
+		Append(sizeTxt);
+	}
 	Append(nameBtn);
-	Append(sizeTxt);
 	if (!dvdheader)//stuff we don't show if it is a DVD mounted
 	{
 		Append(btnLeft);
@@ -303,7 +306,7 @@ GameWindow::~GameWindow()
 
 void GameWindow::LoadGameSound(const struct discHdr * header)
 {
-	if (Settings.gamesoundvolume == 0)
+	if (Settings.gamesoundvolume == 0 || Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
 		return;
 
 	BNRInstance::Instance()->Load(header);
@@ -341,6 +344,12 @@ void GameWindow::LoadDiscImage(const u8 * id)
 	delete diskImgData2;
 	diskImgData2 = diskImgData;
 	diskImgData = NULL;
+
+	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+	{
+		diskImgData = Resources::GetImageData("nodisc.png");
+		return;
+	}
 
 	char imgPath[150];
 	char IDFull[7];
@@ -754,6 +763,16 @@ int GameWindow::MainLoop()
 
 void GameWindow::BootGame(struct discHdr *header)
 {
+	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+	{
+		int ret = GameBooter::BootGame(header);
+		if (ret < 0)
+		{
+			ShowError(tr("Plugin ROM not found or failed to boot."));
+		}
+		return;
+	}
+
 	wiilight(0);
 
 	GameCFG* game_cfg = GameSettings.GetGameCFG(header->id);

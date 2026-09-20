@@ -75,6 +75,15 @@ void CSettings::SetDefault()
 	snprintf(NandEmuPath, sizeof(NandEmuPath), "%s/nands/01/", BootDevice);
 	snprintf(DEVOLoaderPath, sizeof(DEVOLoaderPath), "%s/apps/gc_devo/", BootDevice);
 	snprintf(NINLoaderPath, sizeof(NINLoaderPath), "%s/apps/nintendont/", BootDevice);
+	snprintf(PluginsPath, sizeof(PluginsPath), "%splugins/", ConfigPath);
+	pluginMode = OFF;
+	Plugin3DCvrs = OFF;
+	PluginRomPart = 0;
+	enabledPlugin[0] = 0;
+	pluginMergeGroup[0] = 0;
+	pluginShowMerged = 1;
+	pluginControllerSwitch = 1;
+	pluginLogEnabled = 0;
 	strlcpy(NandEmuChanPath, NandEmuPath, sizeof(NandEmuChanPath));
 	strlcpy(GameCubePath, "usb1:/games/", sizeof(GameCubePath));
 	strlcpy(GameCubeSDPath, "sd:/games/", sizeof(GameCubeSDPath));
@@ -529,6 +538,15 @@ bool CSettings::Save()
 	fprintf(file, "DEVODiscDelay = %d\n", DEVODiscDelay);
 	fprintf(file, "DEVOLoaderPath = %s\n", DEVOLoaderPath);
 	fprintf(file, "NINLoaderPath = %s\n", NINLoaderPath);
+	fprintf(file, "PluginsPath = %s\n", PluginsPath);
+	fprintf(file, "pluginMode = %d\n", pluginMode);
+	fprintf(file, "enabledPlugin = %s\n", enabledPlugin);
+	fprintf(file, "pluginMergeGroup = %s\n", pluginMergeGroup);
+	fprintf(file, "pluginShowMerged = %d\n", pluginShowMerged);
+	fprintf(file, "pluginControllerSwitch = %d\n", pluginControllerSwitch);
+	fprintf(file, "pluginLogEnabled = %d\n", pluginLogEnabled);
+	fprintf(file, "Plugin3DCvrs = %d\n", Plugin3DCvrs);
+	fprintf(file, "PluginRomPart = %d\n", PluginRomPart);
 	fprintf(file, "GCInstallCompressed = %d\n", GCInstallCompressed);
 	fprintf(file, "GCInstallAligned = %d\n", GCInstallAligned);
 	fprintf(file, "PrivateServer = %d\n", PrivateServer);
@@ -1399,6 +1417,51 @@ bool CSettings::SetSetting(char *name, char *value)
 	else if (strcmp(name, "GameCubeSDPath") == 0)
 	{
 		strlcpy(GameCubeSDPath, value, sizeof(GameCubeSDPath));
+		return true;
+	}
+	else if (strcmp(name, "PluginsPath") == 0)
+	{
+		strlcpy(PluginsPath, value, sizeof(PluginsPath));
+		return true;
+	}
+	else if (strcmp(name, "enabledPlugin") == 0)
+	{
+		strlcpy(enabledPlugin, value, sizeof(enabledPlugin));
+		return true;
+	}
+	else if (strcmp(name, "pluginMergeGroup") == 0)
+	{
+		strlcpy(pluginMergeGroup, value, sizeof(pluginMergeGroup));
+		return true;
+	}
+	else if (strcmp(name, "pluginShowMerged") == 0)
+	{
+		pluginShowMerged = atoi(value) ? 1 : 0;
+		return true;
+	}
+	else if (strcmp(name, "pluginControllerSwitch") == 0)
+	{
+		pluginControllerSwitch = atoi(value) ? 1 : 0;
+		return true;
+	}
+	else if (strcmp(name, "pluginLogEnabled") == 0)
+	{
+		pluginLogEnabled = atoi(value) ? 1 : 0;
+		return true;
+	}
+	else if (strcmp(name, "pluginMode") == 0)
+	{
+		pluginMode = atoi(value);
+		return true;
+	}
+	else if (strcmp(name, "Plugin3DCvrs") == 0)
+	{
+		Plugin3DCvrs = atoi(value);
+		return true;
+	}
+	else if (strcmp(name, "PluginRomPart") == 0)
+	{
+		PluginRomPart = atoi(value);
 		return true;
 	}
 	else if (strcmp(name, "URL_Banners") == 0)

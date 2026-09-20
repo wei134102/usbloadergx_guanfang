@@ -36,7 +36,8 @@ enum
 	DISP_WII			= 0x01,
 	DISP_NAND			= 0x02,
 	DISP_EMUNAND		= 0x04,
-	DISP_GC				= 0x08
+	DISP_GC				= 0x08,
+	DISP_PLUGIN			= 0x10
 };
 
 enum

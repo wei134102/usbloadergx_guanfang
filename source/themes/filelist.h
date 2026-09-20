@@ -146,6 +146,8 @@
 #include "player3_point_png.h"
 #include "player4_grab_png.h"
 #include "player4_point_png.h"
+#include "pluginMode_png.h"
+#include "pluginMode_gray_png.h"
 #include "playersSort_png.h"
 #include "progressbar_png.h"
 #include "progressbar_empty_png.h"
@@ -434,6 +436,8 @@ RecourceFile Resources::RecourceFiles[] =
 	{"listBackground.png", NULL, 0, NULL, 0},	// Optional
 	{"carouselBackground.png", NULL, 0, NULL, 0},	// Optional
 	{"gridBackground.png", NULL, 0, NULL, 0},	// Optional
+	{"pluginMode.png", pluginMode_png, pluginMode_png_size, NULL, 0},
+	{"pluginMode_gray.png", pluginMode_gray_png, pluginMode_gray_png_size, NULL, 0},
 	{NULL, NULL, 0, NULL, 0}
 };
 

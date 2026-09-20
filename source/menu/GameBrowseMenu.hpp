@@ -110,6 +110,10 @@ class GameBrowseMenu : public GuiWindow
 		GuiImage * homeBtnImgEmunandOver;
 		GuiImage * homeBtnImgCustom;
 		GuiImage * homeBtnImgCustomOver;
+		GuiImage * homeBtnImgPlugin;
+		GuiImage * homeBtnImgPluginOver;
+		GuiImageData * imgPluginMode;
+		GuiImageData * imgPluginMode_gray;
 		GuiImage * poweroffBtnImg;
 		GuiImage * poweroffBtnImgOver;
 		GuiImage * sdcardImg;
@@ -171,6 +175,7 @@ class GameBrowseMenu : public GuiWindow
 		GuiButton * homebrewBtn;
 		GuiButton * listCoverBtn;
 		GuiButton * DownloadBtn;
+		GuiText * pluginNameTxt;
 
 		GuiTooltip * installBtnTT;
 		GuiTooltip * settingsBtnTT;

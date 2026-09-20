@@ -85,7 +85,7 @@ const char *CGameTitles::GetTitle(const struct discHdr *header) const
 
 	auto game = std::lower_bound(TitleList.begin(), TitleList.end(), (const char *)header->id, [](const GameTitle &gt, const char *gameid)
 								 { return (strncasecmp(gt.GameID, gameid, 6) < 0); });
-	if (game != TitleList.end())
+	if (!Settings.pluginMode && game != TitleList.end())
 	{
 		if (strncasecmp(game->GameID, (const char *)header->id, 6) == 0)
 		{
@@ -236,6 +236,8 @@ u32 CGameTitles::ReadCachedTitles(const char *path)
 
 void CGameTitles::WriteCachedTitles(const char *path)
 {
+	if (Settings.pluginMode)
+		return;
 	std::string Cachepath(path);
 	if (Cachepath.back() != '/')
 		Cachepath += '/';

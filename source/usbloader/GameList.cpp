@@ -39,6 +39,8 @@
 #include "memory/memory.h"
 #include "Channels/channels.h"
 #include "cache/cache.hpp"
+#include "plugin/plugin.hpp"
+#include "utils/Logger.h"
 
 enum
 {
@@ -330,6 +332,22 @@ void GameList::InternalFilterList(std::vector<struct discHdr *> &FullList)
 
 int GameList::FilterList(const wchar_t *gameFilter)
 {
+	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+	{
+		WriteLog("INFO", "[PLUGIN] FilterList: creating plugin game list...");
+		m_plugin.createPluginsGameList();
+		FilteredList.clear();
+		WriteLog("INFO", "[PLUGIN] FilterList: loading %d games into FilteredList...", (int)m_plugin.GetPluginsGameList().size());
+		InternalLoadUnfiltered(m_plugin.GetPluginsGameList());
+		if (gameFilter)
+			GameFilter.assign(gameFilter);
+		GuiSearchBar::FilterList(FilteredList, GameFilter);
+		WriteLog("INFO", "[PLUGIN] FilterList: %d games loaded, about to sort...", (int)FilteredList.size());
+		std::sort(FilteredList.begin(), FilteredList.end(), NameSortCallback);
+		WriteLog("INFO", "[PLUGIN] FilterList: sort done, returning %d", (int)FilteredList.size());
+		return FilteredList.size();
+	}
+
 	if (gameFilter)
 		GameFilter.assign(gameFilter);
 
@@ -353,7 +371,8 @@ void GameList::InternalLoadUnfiltered(std::vector<struct discHdr *> &FullList)
 		struct discHdr *header = FullList[i];
 
 		/* Register game */
-		NewTitles::Instance()->CheckGame(header->id);
+		if (header)
+			NewTitles::Instance()->CheckGame(header->id);
 
 		FilteredList.push_back(header);
 	}
