@@ -191,9 +191,9 @@ GameBrowseMenu::GameBrowseMenu()
 
 	imgPluginMode = Resources::GetImageData("pluginMode.png");
 	imgPluginMode_gray = Resources::GetImageData("pluginMode_gray.png");
-	homeBtnImgPlugin = new GuiImage(imgPluginMode ? imgPluginMode : btnLoaderMode);
+	homeBtnImgPlugin = new GuiImage(imgPluginMode ? imgPluginMode : imgLoaderMode);
 	homeBtnImgPlugin->SetWidescreen(Settings.widescreen);
-	homeBtnImgPluginOver = new GuiImage(imgPluginMode ? imgPluginMode : btnLoaderModeOver);
+	homeBtnImgPluginOver = new GuiImage(imgPluginMode ? imgPluginMode : btnloadermodeOver);
 	homeBtnImgPluginOver->SetWidescreen(Settings.widescreen);
 
 	pluginNameTxt = new GuiText((char *)NULL, 18, thColor("r=55 g=190 b=237 a=255 - game count color"));
@@ -1230,7 +1230,7 @@ int GameBrowseMenu::MainLoop()
 				pos = (pos + delta + m_plugin.PluginsSize()) % m_plugin.PluginsSize();
 				snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic((u8)pos));
 				Settings.Save();
-				gameSelectedOld = -1;
+				OldSelectedGame = -1;
 				gameList.FilterList();
 				ReloadBrowser();
 			}
@@ -1774,7 +1774,7 @@ int GameBrowseMenu::MainLoop()
 			{
 				snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic((u8)choice));
 				Settings.Save();
-				gameSelectedOld = -1;
+				OldSelectedGame = -1;
 				gameList.FilterList();
 				ReloadBrowser();
 			}
