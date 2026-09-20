@@ -504,8 +504,9 @@ vector<discHdr*> Plugin::ParseScummvmINI(const char *filepath, const char *Devic
 		char *i = strchr(line, '[');
 		if(i == NULL) break;
 		strncpy(temp, i + 1, sizeof(temp));
-		*strchr(temp, ']') = '\0';
-		if(temp == NULL) break;
+		char *closeBracket = strchr(temp, ']');
+		if (!closeBracket) break;
+		*closeBracket = '\0';
 		GameDomain = temp;
 
 		while(fgets(line, sizeof(line), file))
@@ -678,7 +679,7 @@ void Plugin::scanPluginAtIndex(u8 pos)
 				WriteLog("WARNING", "[SCANN] memalign failed at ROM %u/%u, stopping", (u32)(i + 1), (u32)pluginGameList.size());
 				break;
 			}
-			memcpy(pluginHdr, pluginGameList[i], sizeof(discHdr));
+			memcpy((discHdr*)pluginHdr, pluginGameList[i], sizeof(discHdr));
 			pluginHdr->pluginMagic = magic;
 			cache->romList.push_back(pluginHdr);
 			copyCount++;
@@ -702,7 +703,7 @@ void Plugin::scanPluginAtIndex(u8 pos)
 		for (size_t i = 0; i < scummList.size(); ++i) {
 			PluginDiscHdr* pluginHdr = (PluginDiscHdr*)memalign(32, ALIGN32(sizeof(PluginDiscHdr)));
 			if (pluginHdr) {
-				memcpy(pluginHdr, scummList[i], sizeof(discHdr));
+				memcpy((discHdr*)pluginHdr, scummList[i], sizeof(discHdr));
 				pluginHdr->pluginMagic = magic;
 				strncpy(pluginHdr->path, romPathsList[romPathsList.size() - scummList.size() + i].c_str(), 
 				        sizeof(pluginHdr->path) - 1);
@@ -993,6 +994,10 @@ DIR  *pdir  = NULL;
 
 void Plugin::GetFiles(const char *Path, const vector<string>& FileTypes, u32 magic, u32 depth, u32 *totalSubdirs)
 {
+	u32 localSubdirs = 0;
+	if (totalSubdirs == NULL)
+		totalSubdirs = &localSubdirs;
+
 	char FullRomPath[256];
 	vector<string> SubPaths;
 	u32 fileCount = 0;

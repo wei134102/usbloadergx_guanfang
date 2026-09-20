@@ -110,7 +110,7 @@ public:
 	bool IsRomExists(const char *path);       ///< 检查 ROM 文件是否仍存在于磁盘
 	void invalidatePluginCache(u32 magic);    ///< 删除单个插件的缓存（ROM 已不存在时调用）
 	vector<discHdr*>& GetPluginsGameList() { return pluginsGameList; } ///< 获取合并后的游戏列表
-	void GetFiles(const char *Path, const vector<string>& FileTypes, u32 magic, u32 depth = 1);
+	void GetFiles(const char *Path, const vector<string>& FileTypes, u32 magic, u32 depth = 1, u32 *totalSubdirs = NULL);
 	void addRomToList(const char *FullPath, u32 magic);
 
 private:
