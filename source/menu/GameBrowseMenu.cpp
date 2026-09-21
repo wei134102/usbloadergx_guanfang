@@ -1115,7 +1115,7 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
 		if (pluginName.empty()) pluginName = "Plugin";
 		pluginNameTxt->SetText(pluginName.c_str());
 		pluginNameTxt->SetAlignment(thAlign("center - game count align hor"), thAlign("top - game count align ver"));
-		pluginNameTxt->SetPosition(thInt("0 - game count pos x"), thInt("460 - game count pos y"));
+		pluginNameTxt->SetPosition(thInt("0 - game count pos x"), thInt("450 - game count pos y"));
 		pluginNameTxt->SetVisible(true);
 		Append(pluginNameTxt);
 	}
