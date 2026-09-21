@@ -849,21 +849,7 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
 		if (gameList.size() > 0)
 			Append(gameCoverImg);
 
-		if ((Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode) && m_plugin.PluginsSize() > 0)
-		{
-			u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
-			s8 pos = m_plugin.GetPluginPosition(curMagic);
-			if (pos < 0) pos = 0;
-			pluginNameTxt->SetText(m_plugin.GetPluginName((u8)pos).c_str());
-			pluginNameTxt->SetPosition(Settings.widescreen ? 40 : 20, 360);
-			pluginNameTxt->SetVisible(true);
-			Append(pluginNameTxt);
-		}
-		else
-		{
-			pluginNameTxt->SetVisible(false);
-			Remove(pluginNameTxt);
-		}
+
 
 		listCoverBtn->SetSize(160, 224);
 		listBtn->SetImage(listBtnImg);
@@ -1118,6 +1104,26 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
 		Append(gamecntBtn);
 	if (!Settings.ShowGameCount)
 		Remove(gamecntBtn);
+
+	// Show plugin name centered below game count in all view modes when in plugin mode
+	if ((Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode) && m_plugin.PluginsSize() > 0)
+	{
+		u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
+		s8 pos = m_plugin.GetPluginPosition(curMagic);
+		if (pos < 0 || pos >= (s8)m_plugin.PluginsSize()) pos = 0;
+		std::string pluginName = m_plugin.GetPluginName((u8)pos).toUTF8();
+		if (pluginName.empty()) pluginName = "Plugin";
+		pluginNameTxt->SetText(pluginName.c_str());
+		pluginNameTxt->SetAlignment(thAlign("center - game count align hor"), thAlign("top - game count align ver"));
+		pluginNameTxt->SetPosition(thInt("0 - game count pos x"), thInt("460 - game count pos y"));
+		pluginNameTxt->SetVisible(true);
+		Append(pluginNameTxt);
+	}
+	else
+	{
+		pluginNameTxt->SetVisible(false);
+		Remove(pluginNameTxt);
+	}
 
 	Append(sdcardBtn);
 	Append(poweroffBtn);
