@@ -113,6 +113,7 @@ class GameBrowseMenu : public GuiWindow
 		GuiImage * homeBtnImgPlugin;
 		GuiImage * homeBtnImgPluginOver;
 		GuiImageData * imgPluginMode;
+		GuiImageData * imgPluginMode_over;
 		GuiImageData * imgPluginMode_gray;
 		GuiImage * poweroffBtnImg;
 		GuiImage * poweroffBtnImgOver;

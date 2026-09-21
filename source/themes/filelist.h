@@ -1,7 +1,7 @@
 /****************************************************************************
  * USB Loader GX resource files.
  * This file is generated automatically.
- * Includes 208 files.
+ * Includes 212 files.
  *
  * NOTE:
  * Any manual modification of this file will be overwriten by the generation.
@@ -114,6 +114,8 @@
 #include "menu_button_nand_png.h"
 #include "menu_button_nand_over_png.h"
 #include "menu_button_over_png.h"
+#include "menu_button_plugin_png.h"
+#include "menu_button_plugin_over_png.h"
 #include "microphone_png.h"
 #include "microphoneR_png.h"
 #include "motionplus_png.h"
@@ -146,9 +148,9 @@
 #include "player3_point_png.h"
 #include "player4_grab_png.h"
 #include "player4_point_png.h"
+#include "playersSort_png.h"
 #include "pluginMode_png.h"
 #include "pluginMode_gray_png.h"
-#include "playersSort_png.h"
 #include "progressbar_png.h"
 #include "progressbar_empty_png.h"
 #include "progressbar_outline_png.h"
@@ -328,6 +330,8 @@ RecourceFile Resources::RecourceFiles[] =
 	{"menu_button_nand.png", menu_button_nand_png, menu_button_nand_png_size, NULL, 0},
 	{"menu_button_nand_over.png", menu_button_nand_over_png, menu_button_nand_over_png_size, NULL, 0},
 	{"menu_button_over.png", menu_button_over_png, menu_button_over_png_size, NULL, 0},
+	{"menu_button_plugin.png", menu_button_plugin_png, menu_button_plugin_png_size, NULL, 0},
+	{"menu_button_plugin_over.png", menu_button_plugin_over_png, menu_button_plugin_over_png_size, NULL, 0},
 	{"microphone.png", microphone_png, microphone_png_size, NULL, 0},
 	{"microphoneR.png", microphoneR_png, microphoneR_png_size, NULL, 0},
 	{"motionplus.png", motionplus_png, motionplus_png_size, NULL, 0},
@@ -361,6 +365,8 @@ RecourceFile Resources::RecourceFiles[] =
 	{"player4_grab.png", player4_grab_png, player4_grab_png_size, NULL, 0},
 	{"player4_point.png", player4_point_png, player4_point_png_size, NULL, 0},
 	{"playersSort.png", playersSort_png, playersSort_png_size, NULL, 0},
+	{"pluginMode.png", pluginMode_png, pluginMode_png_size, NULL, 0},
+	{"pluginMode_gray.png", pluginMode_gray_png, pluginMode_gray_png_size, NULL, 0},
 	{"progressbar.png", progressbar_png, progressbar_png_size, NULL, 0},
 	{"progressbar_empty.png", progressbar_empty_png, progressbar_empty_png_size, NULL, 0},
 	{"progressbar_outline.png", progressbar_outline_png, progressbar_outline_png_size, NULL, 0},
@@ -436,8 +442,6 @@ RecourceFile Resources::RecourceFiles[] =
 	{"listBackground.png", NULL, 0, NULL, 0},	// Optional
 	{"carouselBackground.png", NULL, 0, NULL, 0},	// Optional
 	{"gridBackground.png", NULL, 0, NULL, 0},	// Optional
-	{"pluginMode.png", pluginMode_png, pluginMode_png_size, NULL, 0},
-	{"pluginMode_gray.png", pluginMode_gray_png, pluginMode_gray_png_size, NULL, 0},
 	{NULL, NULL, 0, NULL, 0}
 };
 

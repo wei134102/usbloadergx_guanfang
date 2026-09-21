@@ -189,11 +189,14 @@ GameBrowseMenu::GameBrowseMenu()
 	homeBtnImgCustomOver = new GuiImage(btnhomecustomOver);
 	homeBtnImgCustomOver->SetWidescreen(Settings.widescreen);
 
-	imgPluginMode = Resources::GetImageData("pluginMode.png");
+	imgPluginMode = Resources::GetImageData("menu_button_plugin.png");
+	if (!imgPluginMode)
+		imgPluginMode = Resources::GetImageData("pluginMode.png");
+	imgPluginMode_over = Resources::GetImageData("menu_button_plugin_over.png");
 	imgPluginMode_gray = Resources::GetImageData("pluginMode_gray.png");
 	homeBtnImgPlugin = new GuiImage(imgPluginMode ? imgPluginMode : imgLoaderMode);
 	homeBtnImgPlugin->SetWidescreen(Settings.widescreen);
-	homeBtnImgPluginOver = new GuiImage(imgPluginMode ? imgPluginMode : btnloadermodeOver);
+	homeBtnImgPluginOver = new GuiImage(imgPluginMode_over ? imgPluginMode_over : (imgPluginMode ? imgPluginMode : btnloadermodeOver));
 	homeBtnImgPluginOver->SetWidescreen(Settings.widescreen);
 
 	pluginNameTxt = new GuiText((char *)NULL, 18, thColor("r=55 g=190 b=237 a=255 - game count color"));
@@ -539,6 +542,7 @@ GameBrowseMenu::~GameBrowseMenu()
 	delete homeBtnImgPlugin;
 	delete homeBtnImgPluginOver;
 	delete imgPluginMode;
+	delete imgPluginMode_over;
 	delete imgPluginMode_gray;
 	delete poweroffBtnImg;
 	delete poweroffBtnImgOver;
