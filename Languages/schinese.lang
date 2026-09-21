@@ -1766,6 +1766,12 @@ msgstr "从列表中选择"
 msgid "Pixels"
 msgstr "像素"
 
+msgid "Plugin Files Path"
+msgstr "插件文件路径"
+
+msgid "Plugin Path"
+msgstr "插件路径"
+
 msgid "Play Count"
 msgstr "播放计数"
 

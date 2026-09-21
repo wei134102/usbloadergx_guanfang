@@ -66,6 +66,7 @@ CustomPathsSM::CustomPathsSM()
 	Options->SetName(Idx++, tr("Devolution Loader Path"));
 	Options->SetName(Idx++, tr("Nintendont Loader Path"));
 	Options->SetName(Idx++, tr("Cache BNR Files Path"));
+	Options->SetName(Idx++, tr("Plugin Path"));
 	Options->SetName(Idx++, tr("Cache Path"));
 
 	SetOptionValues();
@@ -366,10 +367,10 @@ int CustomPathsSM::GetMenuInternal()
 		ChangePath(Settings.BNRCachePath, sizeof(Settings.BNRCachePath));
 	}
 
-	//! Settings: Plugin Files Path
+	//! Settings: Plugin Path
 	else if (ret == ++Idx)
 	{
-		titleTxt->SetText(tr( "Plugin Files Path" ));
+		titleTxt->SetText(tr( "Plugin Path" ));
 		ChangePath(Settings.PluginsPath, sizeof(Settings.PluginsPath));
 	}
 
