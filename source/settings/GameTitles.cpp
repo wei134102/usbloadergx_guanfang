@@ -275,6 +275,8 @@ int CGameTitles::GetMissingTitles(std::vector<std::string> &MissingTitles, std::
 {
 	for (u32 i = 0; i < headerlist.size(); ++i)
 	{
+		if (!headerlist[i])
+			continue;
 		bool found = false;
 		for (u32 n = 0; n < TitleList.size(); ++n)
 		{
@@ -286,7 +288,7 @@ int CGameTitles::GetMissingTitles(std::vector<std::string> &MissingTitles, std::
 			}
 		}
 		if (!found /*&& !headerlist[i]->tid*/)
-			MissingTitles.push_back((std::string)(const char *)headerlist[i]->id);
+			MissingTitles.push_back(std::string((const char *)headerlist[i]->id, 6));
 	}
 	return MissingTitles.size();
 }
@@ -304,7 +306,7 @@ void CGameTitles::CleanTitles(std::vector<struct discHdr *> &headerlist)
 			{
 				for (auto hdr : headerlist)
 				{
-					if (strncasecmp(title.GameID, (const char *)hdr->id, 6) == 0)
+					if (hdr && strncasecmp(title.GameID, (const char *)hdr->id, 6) == 0)
 						return false;
 				}
 				return true;

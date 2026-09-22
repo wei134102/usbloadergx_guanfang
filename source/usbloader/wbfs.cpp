@@ -56,13 +56,13 @@ s32 WBFS_ReInit(u32 device)
 	WBFS_CloseAll();
 	if (device == WBFS_DEVICE_SDHC)
 	{
-		DeviceHandler::Instance()->UnMountSD();
-		DeviceHandler::Instance()->MountSD();
+		if (!DeviceHandler::Instance()->IsMounted(SD))
+			DeviceHandler::Instance()->MountSD();
 	}
 	else
 	{
-		DeviceHandler::Instance()->UnMountAllUSB();
-		DeviceHandler::Instance()->MountAllUSB();
+		if (DeviceHandler::GetUSBPartitionCount() == 0)
+			DeviceHandler::Instance()->MountAllUSB();
 	}
 	s32 ret = -1;
 

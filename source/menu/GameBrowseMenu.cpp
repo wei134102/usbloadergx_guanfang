@@ -917,10 +917,14 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
 		if (!firstRun)
 		{
 			int SelectedGame = GetSelectedGame();
-			if (SelectedGame >= 0 && SelectedGame < gameList.size())
+			if (SelectedGame >= 0 && SelectedGame < gameList.size() && gameList[SelectedGame])
 			{
 				LoadCover(gameList[SelectedGame]);
 				UpdateGameInfoText(gameList[SelectedGame]);
+			}
+			else
+			{
+				UpdateGameInfoText(NULL);
 			}
 		}
 	}
@@ -1183,8 +1187,6 @@ bool GameBrowseMenu::ReloadWiiGames(bool cached)
 	{
 		if (WBFS_Init(Settings.SDMode ? WBFS_DEVICE_SDHC : WBFS_DEVICE_USB) < 0)
 			return false;
-		else
-			WBFS_ReInit(Settings.SDMode ? WBFS_DEVICE_SDHC : WBFS_DEVICE_USB);
 		gameList.ReadGameList(cached);
 
 		allowUsedSpaceTxtUpdate = true;
@@ -1824,10 +1826,14 @@ int GameBrowseMenu::MainLoop()
 	{
 		OldSelectedGame = GetSelectedGame();
 		int SelectedGame = OldSelectedGame;
-		if (SelectedGame >= 0 && SelectedGame < (s32)gameList.size())
+		if (SelectedGame >= 0 && SelectedGame < (s32)gameList.size() && gameList[SelectedGame])
 		{
 			LoadCover(gameList[SelectedGame]);
 			UpdateGameInfoText(gameList[SelectedGame]);
+		}
+		else
+		{
+			UpdateGameInfoText(NULL);
 		}
 	}
 
