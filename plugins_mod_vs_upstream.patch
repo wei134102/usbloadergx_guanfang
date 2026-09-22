@@ -1,0 +1,4032 @@
+diff --git a/.github/workflows/docker-image.yml b/.github/workflows/docker-image.yml
+new file mode 100644
+index 00000000..194e0dc9
+--- /dev/null
++++ b/.github/workflows/docker-image.yml
+@@ -0,0 +1,18 @@
++name: Docker Image CI
++
++on:
++  push:
++    branches: [ "enhanced" ]
++  pull_request:
++    branches: [ "enhanced" ]
++
++jobs:
++
++  build:
++
++    runs-on: ubuntu-latest
++
++    steps:
++    - uses: actions/checkout@v4
++    - name: Build the Docker image
++      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+diff --git a/.github/workflows/main.yml b/.github/workflows/main.yml
+index 90aede04..2b03bbd1 100644
+--- a/.github/workflows/main.yml
++++ b/.github/workflows/main.yml
+@@ -45,6 +45,7 @@ jobs:
+           cp boot.dol upload/apps/usbloader_gx
+           cp HBC/icon.png upload/apps/usbloader_gx
+           cp HBC/meta.xml upload/apps/usbloader_gx
++          cp -r Languages upload/apps/usbloader_gx/
+           echo "sha=$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
+ 
+       - name: Upload binary
+diff --git a/.gitignore b/.gitignore
+index 1bfaf2fa..f6f5b43a 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -9,3 +9,5 @@ usbloader_gx/
+ /source/themes/filelist.h
+ /source/version.h
+ /usbloader_gx.zip
++ThemeCreator_USBloaderGX/
++ThemeCreator_Web/
+diff --git a/Languages/english.lang b/Languages/english.lang
+index 6bcd9170..ce1343c1 100644
+--- a/Languages/english.lang
++++ b/Languages/english.lang
+@@ -1766,6 +1766,12 @@ msgstr ""
+ msgid "Pixels"
+ msgstr ""
+ 
++msgid "Plugin Files Path"
++msgstr ""
++
++msgid "Plugin Path"
++msgstr ""
++
+ msgid "Play Count"
+ msgstr ""
+ 
+diff --git a/Languages/schinese.lang b/Languages/schinese.lang
+index 50dac6f4..e91b5cf7 100644
+--- a/Languages/schinese.lang
++++ b/Languages/schinese.lang
+@@ -1766,6 +1766,12 @@ msgstr "从列表中选择"
+ msgid "Pixels"
+ msgstr "像素"
+ 
++msgid "Plugin Files Path"
++msgstr "插件文件路径"
++
++msgid "Plugin Path"
++msgstr "插件路径"
++
+ msgid "Play Count"
+ msgstr "播放计数"
+ 
+diff --git a/Languages/tchinese.lang b/Languages/tchinese.lang
+index 11f13fa8..4a2df98f 100644
+--- a/Languages/tchinese.lang
++++ b/Languages/tchinese.lang
+@@ -1766,6 +1766,12 @@ msgstr "從列表中選擇"
+ msgid "Pixels"
+ msgstr "像素"
+ 
++msgid "Plugin Files Path"
++msgstr "插件檔案路徑"
++
++msgid "Plugin Path"
++msgstr "插件路徑"
++
+ msgid "Play Count"
+ msgstr "播放次數"
+ 
+diff --git a/Makefile b/Makefile
+index 8b86fbd2..d0b286bd 100644
+--- a/Makefile
++++ b/Makefile
+@@ -49,6 +49,7 @@ SOURCES		:=	source \
+ 				source/utils \
+ 				source/utils/minizip \
+ 				source/usbloader/wbfs \
++				source/plugin \
+ 				source/cache
+ DATA		:=	data/images \
+ 				data/fonts \
+@@ -186,14 +187,16 @@ deploy:
+ 
+ #---------------------------------------------------------------------------------
+ zip:
+-	$(MAKE)
++	@$(MAKE) release
+ 	@echo Creating zip file...
+-	@[ -d usbloader_gx ] || mkdir -p usbloader_gx
+-	@cp $(TARGET).dol usbloader_gx/
+-	@cp $(TARGET).elf usbloader_gx/
+-	@cp HBC/icon.png usbloader_gx/
+-	@cp HBC/meta.xml usbloader_gx/
+-	@zip usbloader_gx.zip usbloader_gx/*
++	@[ -d apps/usbloader_gx ] || mkdir -p apps/usbloader_gx
++	@cp $(TARGET).dol apps/usbloader_gx/
++	@cp $(TARGET).elf apps/usbloader_gx/
++	@cp HBC/icon.png apps/usbloader_gx/
++	@cp HBC/meta.xml apps/usbloader_gx/
++	@cp -r Languages apps/usbloader_gx/
++	@zip -r usbloader_gx.zip apps/
++	@rm -rf apps/
+ 
+ #---------------------------------------------------------------------------------
+ reload:
+diff --git a/data/images/menu_button_plugin.png b/data/images/menu_button_plugin.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..c2de2b6b26e55ba5ff3ceec240ef1f8754c905db
+GIT binary patch
+literal 7984
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/data/images/menu_button_plugin_over.png b/data/images/menu_button_plugin_over.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8d125ecb06d6182a14f6511c2e215fd8f7ef0fd
+GIT binary patch
+literal 9723
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/data/images/pluginMode.png b/data/images/pluginMode.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..c2de2b6b26e55ba5ff3ceec240ef1f8754c905db
+GIT binary patch
+literal 7984
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/data/images/pluginMode_gray.png b/data/images/pluginMode_gray.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..03204b4a6c260615e49f86ceaf9300b8a526e872
+GIT binary patch
+literal 5779
+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
+R4ut>!002ovPDHLkV1hbHFfIT9
+
+literal 0
+HcmV?d00001
+
+diff --git a/jWiiload.jar b/jWiiload.jar
+new file mode 100644
+index 0000000000000000000000000000000000000000..a2b87b621d3448fdcb1286f36cb0adf9256aed4a
+GIT binary patch
+literal 16399
+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
+G0sjku+tK9!
+
+literal 0
+HcmV?d00001
+
+diff --git a/source/GUI/LoadCoverImage.cpp b/source/GUI/LoadCoverImage.cpp
+index c9c5a037..51d27316 100644
+--- a/source/GUI/LoadCoverImage.cpp
++++ b/source/GUI/LoadCoverImage.cpp
+@@ -3,6 +3,7 @@
+ #include "FileOperations/fileops.h"
+ #include "settings/CSettings.h"
+ #include "themes/CTheme.h"
++#include "plugin/plugin.hpp"
+ 
+ /****************************************************************************
+  * LoadCoverImage
+@@ -12,6 +13,46 @@ GuiImageData *LoadCoverImage(struct discHdr *header, bool Prefere3D, bool noCove
+ 	if (!header)
+ 		return NULL;
+ 	GuiImageData *Cover = NULL;
++
++	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++	{
++		bool flag = Settings.Plugin3DCvrs;
++		char Title[64];
++		char Path[256];
++
++		const char *romPath = m_plugin.GetRomPath(header->title);
++		if (!romPath || romPath[0] == '\0')
++		{
++			const char *base = strrchr(header->title, '/') ? strrchr(header->title, '/') + 1 : header->title;
++			snprintf(Title, sizeof(Title), "%s", base);
++		}
++		else
++		{
++			const char *base = strrchr(romPath, '/') + 1;
++			snprintf(Title, sizeof(Title), "%s", base ? base : romPath);
++		}
++		char *coverPath = flag ? Settings.covers_path : Settings.covers2d_path;
++		const char *folderName = m_plugin.GetCoverFolderName(header->magic);
++		snprintf(Path, sizeof(Path), "%s%s/%s.png", coverPath, folderName ? folderName : "unknown", Title);
++
++		if (CheckFile(Path))
++		{
++			delete Cover;
++			Cover = new (std::nothrow) GuiImageData(Path);
++			if (Cover && Cover->GetImage())
++				return Cover;
++		}
++
++		delete Cover;
++		Cover = Resources::GetImageData(flag ? "nocover.png" : "nocoverFlat.png");
++		if (Cover && !Cover->GetImage())
++		{
++			delete Cover;
++			Cover = NULL;
++		}
++		return Cover;
++	}
++
+ 	char ID3[4] = {};
+ 	char IDfull[7];
+ 	char Path[255];
+diff --git a/source/gitver.c b/source/gitver.c
+new file mode 100644
+index 00000000..a58c1fa5
+--- /dev/null
++++ b/source/gitver.c
+@@ -0,0 +1,6 @@
++#define GIT_HASH "3ba2ada"
++
++const char *commitID()
++{
++	return GIT_HASH;
++}
+diff --git a/source/menu/GameBrowseMenu.cpp b/source/menu/GameBrowseMenu.cpp
+index 3da01da5..9330129d 100644
+--- a/source/menu/GameBrowseMenu.cpp
++++ b/source/menu/GameBrowseMenu.cpp
+@@ -40,6 +40,8 @@
+ #include "menus.h"
+ #include "wpad.h"
+ #include "sys.h"
++#include "plugin/plugin.hpp"
++#include "plugin/PluginPrompt.hpp"
+ 
+ struct discHdr *dvdheader = NULL;
+ bool allowUsedSpaceTxtUpdate = false;
+@@ -186,6 +188,34 @@ GameBrowseMenu::GameBrowseMenu()
+ 	homeBtnImgCustom->SetWidescreen(Settings.widescreen);
+ 	homeBtnImgCustomOver = new GuiImage(btnhomecustomOver);
+ 	homeBtnImgCustomOver->SetWidescreen(Settings.widescreen);
++
++	imgPluginMode = Resources::GetImageData("menu_button_plugin.png");
++	if (!imgPluginMode)
++		imgPluginMode = Resources::GetImageData("pluginMode.png");
++	imgPluginMode_over = Resources::GetImageData("menu_button_plugin_over.png");
++	imgPluginMode_gray = Resources::GetImageData("pluginMode_gray.png");
++	homeBtnImgPlugin = new GuiImage(imgPluginMode ? imgPluginMode : imgLoaderMode);
++	homeBtnImgPlugin->SetWidescreen(Settings.widescreen);
++	homeBtnImgPluginOver = new GuiImage(imgPluginMode_over ? imgPluginMode_over : (imgPluginMode ? imgPluginMode : btnloadermodeOver));
++	homeBtnImgPluginOver->SetWidescreen(Settings.widescreen);
++
++	pluginNameTxt = new GuiText((char *)NULL, 18, thColor("r=55 g=190 b=237 a=255 - game count color"));
++	pluginNameTxt->SetAlignment(thAlign("center - game count align hor"), thAlign("top - game count align ver"));
++	pluginNameTxt->SetPosition(thInt("0 - game count pos x"), thInt("440 - game count pos y"));
++	pluginNameTxt->SetVisible(false);
++
++	m_plugin.Init();
++	m_plugin.createPluginsList();
++
++	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++	{
++		if (m_plugin.PluginsSize() > 0 && Settings.enabledPlugin[0] == 0)
++		{
++			snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic(0));
++		}
++		gameList.FilterList();
++	}
++
+ 	homeBtn = new GuiButton(homeBtnImg, homeBtnImgOver, 0, 3,
+ 							thInt("489 - home menu btn pos x"), thInt("371 - home menu btn pos y"),
+ 							trigA, btnSoundOver, btnSoundClick2, 1, homeBtnTT, 15, -30, 1, 5);
+@@ -518,6 +548,11 @@ GameBrowseMenu::~GameBrowseMenu()
+ 	delete homeBtnImgEmunandOver;
+ 	delete homeBtnImgCustom;
+ 	delete homeBtnImgCustomOver;
++	delete homeBtnImgPlugin;
++	delete homeBtnImgPluginOver;
++	delete imgPluginMode;
++	delete imgPluginMode_over;
++	delete imgPluginMode_gray;
+ 	delete poweroffBtnImg;
+ 	delete poweroffBtnImgOver;
+ 	delete sdcardImg;
+@@ -579,6 +614,7 @@ GameBrowseMenu::~GameBrowseMenu()
+ 	delete homebrewBtn;
+ 	delete listCoverBtn;
+ 	delete DownloadBtn;
++	delete pluginNameTxt;
+ 
+ 	delete installBtnTT;
+ 	delete settingsBtnTT;
+@@ -760,6 +796,22 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
+ 			homeBtn->SetImage(homeBtnImgEmunand);
+ 			homeBtn->SetImageOver(homeBtnImgEmunandOver);
+ 		}
++		else if (Settings.GameDisplayType == DISP_PLUGIN)
++		{
++			if (m_plugin.PluginsSize() > 0)
++			{
++				u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
++				s8 pos = m_plugin.GetPluginPosition(curMagic);
++				if (pos < 0) pos = 0;
++				homeBtnTT->SetText(fmt("%s: %s", tr("Displaying Plugin games"), m_plugin.GetPluginName((u8)pos).toUTF8().c_str()));
++			}
++			else
++			{
++				homeBtnTT->SetText(tr("Displaying Plugin games"));
++			}
++			homeBtn->SetImage(homeBtnImgPlugin);
++			homeBtn->SetImageOver(homeBtnImgPluginOver);
++		}
+ 		else if (Settings.GameDisplayType == DISP_CUSTOM)
+ 		{
+ 			homeBtnTT->SetText(tr("Displaying a custom selection"));
+@@ -805,6 +857,9 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
+ 			LoadCover(gameList[0]);
+ 		if (gameList.size() > 0)
+ 			Append(gameCoverImg);
++
++
++
+ 		listCoverBtn->SetSize(160, 224);
+ 		listBtn->SetImage(listBtnImg);
+ 		listBtn->SetImageOver(listBtnImg);
+@@ -871,11 +926,15 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
+ 		if (!firstRun)
+ 		{
+ 			int SelectedGame = GetSelectedGame();
+-			if (SelectedGame >= 0 && SelectedGame < gameList.size())
++			if (SelectedGame >= 0 && SelectedGame < gameList.size() && gameList[SelectedGame])
+ 			{
+ 				LoadCover(gameList[SelectedGame]);
+ 				UpdateGameInfoText(gameList[SelectedGame]);
+ 			}
++			else
++			{
++				UpdateGameInfoText(NULL);
++			}
+ 		}
+ 	}
+ 	else if (Settings.gameDisplay == GRID_MODE)
+@@ -1059,6 +1118,26 @@ void GameBrowseMenu::ReloadBrowser(bool firstRun)
+ 	if (!Settings.ShowGameCount)
+ 		Remove(gamecntBtn);
+ 
++	// Show plugin name centered below game count in all view modes when in plugin mode
++	if ((Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode) && m_plugin.PluginsSize() > 0)
++	{
++		u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
++		s8 pos = m_plugin.GetPluginPosition(curMagic);
++		if (pos < 0 || pos >= (s8)m_plugin.PluginsSize()) pos = 0;
++		std::string pluginName = m_plugin.GetPluginName((u8)pos).toUTF8();
++		if (pluginName.empty()) pluginName = "Plugin";
++		pluginNameTxt->SetText(pluginName.c_str());
++		pluginNameTxt->SetAlignment(thAlign("center - game count align hor"), thAlign("top - game count align ver"));
++		pluginNameTxt->SetPosition(thInt("0 - game count pos x"), thInt("450 - game count pos y"));
++		pluginNameTxt->SetVisible(true);
++		Append(pluginNameTxt);
++	}
++	else
++	{
++		pluginNameTxt->SetVisible(false);
++		Remove(pluginNameTxt);
++	}
++
+ 	Append(sdcardBtn);
+ 	Append(poweroffBtn);
+ 	Append(gameInfo);
+@@ -1117,8 +1196,6 @@ bool GameBrowseMenu::ReloadWiiGames(bool cached)
+ 	{
+ 		if (WBFS_Init(Settings.SDMode ? WBFS_DEVICE_SDHC : WBFS_DEVICE_USB) < 0)
+ 			return false;
+-		else
+-			WBFS_ReInit(Settings.SDMode ? WBFS_DEVICE_SDHC : WBFS_DEVICE_USB);
+ 		gameList.ReadGameList(cached);
+ 
+ 		allowUsedSpaceTxtUpdate = true;
+@@ -1137,6 +1214,50 @@ int GameBrowseMenu::MainLoop()
+ 	UpdateClock();
+ 	CheckDiscSlotUpdate();
+ 
++	// 插件模式下手柄快捷切换插件（Wiimote +/- 或 NGC L/R）
++	if ((Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode) && Settings.pluginControllerSwitch && m_plugin.PluginsSize() > 0)
++	{
++		static u64 lastPluginSwitchTime = 0;
++		static u32 pluginSwitchLastHeld = 0;
++		u64 currentTime = gettime();
++		const u64 PLUGIN_SWITCH_COOLDOWN = 500000; // 500ms
++
++		if (diff_nsec(currentTime, lastPluginSwitchTime) > PLUGIN_SWITCH_COOLDOWN)
++		{
++			u32 wpad_h = 0, pad_h = 0;
++			for (int i = 0; i < 4; i++)
++			{
++				wpad_h |= userInput[i].wpad.btns_h;
++				pad_h  |= userInput[i].pad.btns_h;
++			}
++			u32 plus_held  = (wpad_h & (WPAD_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_PLUS)) ? 1u : 0u;
++			u32 minus_held = (wpad_h & (WPAD_BUTTON_MINUS | WPAD_CLASSIC_BUTTON_MINUS)) ? 2u : 0u;
++			u32 l_held     = (pad_h & PAD_TRIGGER_L) ? 4u : 0u;
++			u32 r_held     = (pad_h & PAD_TRIGGER_R) ? 8u : 0u;
++			u32 cur_held   = plus_held | minus_held | l_held | r_held;
++
++			int delta = 0;
++			if ((plus_held && !(pluginSwitchLastHeld & 1)) || (r_held && !(pluginSwitchLastHeld & 8))) delta = 1;
++			else if ((minus_held && !(pluginSwitchLastHeld & 2)) || (l_held && !(pluginSwitchLastHeld & 4))) delta = -1;
++
++			pluginSwitchLastHeld = cur_held;
++
++			if (delta != 0)
++			{
++				lastPluginSwitchTime = currentTime;
++				u32 curMagic = strtoul(Settings.enabledPlugin, NULL, 16);
++				s8 pos = m_plugin.GetPluginPosition(curMagic);
++				if (pos < 0) pos = 0;
++				pos = (pos + delta + m_plugin.PluginsSize()) % m_plugin.PluginsSize();
++				snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic((u8)pos));
++				Settings.Save();
++				OldSelectedGame = -1;
++				gameList.FilterList();
++				ReloadBrowser();
++			}
++		}
++	}
++
+ 	if (poweroffBtn->GetState() == STATE_CLICKED)
+ 	{
+ 		gprintf("\tpoweroffBtn clicked\n");
+@@ -1193,18 +1314,30 @@ int GameBrowseMenu::MainLoop()
+ 			else if (Settings.GameDisplayType == DISP_NAND)
+ 				Settings.GameDisplayType = DISP_EMUNAND;
+ 			else if (Settings.GameDisplayType == DISP_EMUNAND)
++			{
++				Settings.GameDisplayType = DISP_PLUGIN;
++				Settings.pluginMode = ON;
++				if (m_plugin.PluginsSize() > 0 && Settings.enabledPlugin[0] == 0)
++				{
++					snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic(0));
++				}
++			}
++			else if (Settings.GameDisplayType == DISP_PLUGIN)
+ 			{
+ 				Settings.GameDisplayType = DISP_CUSTOM;
++				Settings.pluginMode = OFF;
+ 				if (Settings.LoaderMode & MODE_WIIGAMES)
+ 					ReloadWiiGames(true);
+ 			}
+ 			else if (Settings.GameDisplayType == DISP_CUSTOM)
+ 			{
+ 				Settings.GameDisplayType = DISP_WII;
++				Settings.pluginMode = OFF;
+ 				ReloadWiiGames(true);
+ 			}
+ 			wString oldFilter(gameList.GetCurrentFilter());
+-			GameTitles.LoadTitlesFromGameTDB(Settings.titlestxt_path);
++			if (Settings.GameDisplayType != DISP_PLUGIN)
++				GameTitles.LoadTitlesFromGameTDB(Settings.titlestxt_path);
+ 			gameList.FilterList(oldFilter.c_str());
+ 			ReloadBrowser();
+ 		}
+@@ -1643,6 +1776,33 @@ int GameBrowseMenu::MainLoop()
+ 			return returnMenu;
+ 		}
+ 
++		if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++		{
++			mainWindow->SetState(STATE_DISABLED);
++			PluginPrompt promptMenu;
++			promptMenu.SetAlignment(thAlign("center - plugin prompt align hor"), thAlign("middle - plugin prompt align ver"));
++			promptMenu.SetPosition(thInt("0 - plugin prompt pos x"), thInt("0 - plugin prompt pos y"));
++			promptMenu.SetEffect(EFFECT_FADE, 20);
++			mainWindow->Append(&promptMenu);
++
++			int choice = promptMenu.Show();
++
++			promptMenu.SetEffect(EFFECT_FADE, -20);
++			while (promptMenu.GetEffect() > 0) usleep(100);
++			mainWindow->Remove(&promptMenu);
++			mainWindow->SetState(STATE_DEFAULT);
++			if (choice >= 0 && choice < m_plugin.PluginsSize())
++			{
++				snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic((u8)choice));
++				Settings.Save();
++				OldSelectedGame = -1;
++				gameList.FilterList();
++				ReloadBrowser();
++			}
++			loaderModeBtn->ResetState();
++			return returnMenu;
++		}
++
+ 		// Fixes EmuNAND being on line 3
+ 		int choice = ShowSelectGames(tr("Select Game Sources"), tr("Wii"), tr("NAND"), tr("EmuNAND"), tr("GameCube"), Settings.LoaderMode);
+ 		if (choice != CheckedNone && choice != Settings.LoaderMode)
+@@ -1675,11 +1835,15 @@ int GameBrowseMenu::MainLoop()
+ 	{
+ 		OldSelectedGame = GetSelectedGame();
+ 		int SelectedGame = OldSelectedGame;
+-		if (SelectedGame >= 0 && SelectedGame < (s32)gameList.size())
++		if (SelectedGame >= 0 && SelectedGame < (s32)gameList.size() && gameList[SelectedGame])
+ 		{
+ 			LoadCover(gameList[SelectedGame]);
+ 			UpdateGameInfoText(gameList[SelectedGame]);
+ 		}
++		else
++		{
++			UpdateGameInfoText(NULL);
++		}
+ 	}
+ 
+ 	if (gameBrowser)
+diff --git a/source/menu/GameBrowseMenu.hpp b/source/menu/GameBrowseMenu.hpp
+index ee53e84e..9dff1fe1 100644
+--- a/source/menu/GameBrowseMenu.hpp
++++ b/source/menu/GameBrowseMenu.hpp
+@@ -110,6 +110,11 @@ class GameBrowseMenu : public GuiWindow
+ 		GuiImage * homeBtnImgEmunandOver;
+ 		GuiImage * homeBtnImgCustom;
+ 		GuiImage * homeBtnImgCustomOver;
++		GuiImage * homeBtnImgPlugin;
++		GuiImage * homeBtnImgPluginOver;
++		GuiImageData * imgPluginMode;
++		GuiImageData * imgPluginMode_over;
++		GuiImageData * imgPluginMode_gray;
+ 		GuiImage * poweroffBtnImg;
+ 		GuiImage * poweroffBtnImgOver;
+ 		GuiImage * sdcardImg;
+@@ -171,6 +176,7 @@ class GameBrowseMenu : public GuiWindow
+ 		GuiButton * homebrewBtn;
+ 		GuiButton * listCoverBtn;
+ 		GuiButton * DownloadBtn;
++		GuiText * pluginNameTxt;
+ 
+ 		GuiTooltip * installBtnTT;
+ 		GuiTooltip * settingsBtnTT;
+diff --git a/source/plugin/PluginBrowser.cpp b/source/plugin/PluginBrowser.cpp
+new file mode 100644
+index 00000000..9fefc6b8
+--- /dev/null
++++ b/source/plugin/PluginBrowser.cpp
+@@ -0,0 +1,261 @@
++
++#include "GUI/gui.h"
++#include "wpad.h"
++
++#include <unistd.h>
++#include "settings/CSettings.h"
++#include "main.h"
++#include "themes/CTheme.h"
++#include "utils/tools.h"
++#include "menu.h"
++#include "plugin/plugin.hpp"
++#include "plugin/PluginBrowser.hpp"
++
++#include <string.h>
++#include <sstream>
++
++#define GAMESELECTSIZE	  30
++
++GuiPluginBrowser::GuiPluginBrowser(int w, int h)// int offset
++	: scrollBar(h-10)
++{
++	width = w;//396
++	height = h;//280
++	pagesize = thInt("9 - plugin list browser page size");
++	selectable = true;
++	listOffset = 0;
++	//listOffset = LIMIT(offset, 0, MAX(0, gameList.size()-pagesize));
++	selectedItem = 0;
++
++	m_plugin.createPluginsList();
++	
++	trigA = new GuiTrigger;
++	trigA->SetSimpleTrigger(-1, WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A, PAD_BUTTON_A);
++
++	scrollBar.SetParent(this);
++	scrollBar.SetAlignment(thAlign("right - plugin browser scrollbar align hor"), thAlign("top - plugin browser scrollbar align ver"));
++	scrollBar.SetPosition(thInt("0 - plugin browser scrollbar pos x"), thInt("5 - plugin browser scrollbar pos y"));
++	scrollBar.SetButtonScroll(WPAD_BUTTON_B | WPAD_CLASSIC_BUTTON_B);
++	scrollBar.SetPageSize(pagesize);
++	scrollBar.SetSelectedItem(selectedItem);
++	scrollBar.SetSelectedIndex(listOffset);
++	scrollBar.SetEntryCount(m_plugin.PluginsSize());
++	scrollBar.listChanged.connect(this, &GuiPluginBrowser::onListChange);
++
++	bgPlugins = Resources::GetImageData("bg_options.png");
++	bgPluginsImg = new GuiImage(bgPlugins);
++	bgPluginsImg->SetParent(this);
++	bgPluginsImg->SetAlignment(ALIGN_LEFT, ALIGN_MIDDLE);
++
++	bgPluginsEntry = Resources::GetImageData("bg_options_entry.png");
++
++	maxTextWidth = bgPluginsImg->GetWidth() - scrollBar.GetWidth() - 38;
++
++	plugin = new GuiButton *[pagesize];
++	pluginTxt = new GuiText *[pagesize];
++	pluginTxtOver = new GuiText *[pagesize];
++	pluginBg = new GuiImage *[pagesize];
++
++	for (int i = 0; i < pagesize; ++i)
++	{
++		pluginTxt[i] = new GuiText((char *) NULL, 20, thColor("r=0 g=0 b=0 a=255 - plugin browser list text color"));
++		pluginTxt[i]->SetAlignment(ALIGN_LEFT, ALIGN_MIDDLE);
++		pluginTxt[i]->SetPosition(24, 0);
++		pluginTxt[i]->SetMaxWidth(maxTextWidth, DOTTED);
++
++		pluginTxtOver[i] = new GuiText((char *) NULL, 20, thColor("r=0 g=0 b=0 a=255 - plugin browser list text color over"));
++		pluginTxtOver[i]->SetAlignment(ALIGN_LEFT, ALIGN_MIDDLE);
++		pluginTxtOver[i]->SetPosition(24, 0);
++		pluginTxtOver[i]->SetMaxWidth(maxTextWidth, SCROLL_HORIZONTAL);
++
++		pluginBg[i] = new GuiImage(bgPluginsEntry);
++
++		plugin[i] = new GuiButton(width - scrollBar.GetWidth(), GAMESELECTSIZE);
++		plugin[i]->SetParent(this);
++		plugin[i]->SetLabel(pluginTxt[i]);
++		plugin[i]->SetLabelOver(pluginTxtOver[i]);
++		plugin[i]->SetImageOver(pluginBg[i]);
++		plugin[i]->SetPosition(5, GAMESELECTSIZE * i + 4);
++		plugin[i]->SetRumble(false);
++		plugin[i]->SetTrigger(trigA);
++		plugin[i]->SetSoundClick(btnSoundClick);
++		plugin[i]->SetVisible(false);
++		plugin[i]->SetState(STATE_DISABLED);
++	}
++	UpdateListEntries();
++}
++
++/**
++ * Destructor for the GuiGameList class.
++ */
++GuiPluginBrowser::~GuiPluginBrowser()
++{
++	delete bgPluginsImg;
++	delete bgPlugins;
++	delete bgPluginsEntry;
++
++	delete trigA;
++
++	for (int i = 0; i < pagesize; ++i)
++	{
++		delete pluginTxt[i];
++		delete pluginTxtOver[i];
++		delete pluginBg[i];
++		delete plugin[i];
++	}
++	delete[] plugin;
++	delete[] pluginTxt;
++	delete[] pluginTxtOver;
++	delete[] pluginBg;
++}
++
++void GuiPluginBrowser::SetFocus(int f)
++{
++	LOCK( this );
++	if (!m_plugin.PluginsSize()) return;
++
++	for (int i = 0; i < pagesize; ++i)
++		plugin[i]->ResetState();
++
++	if (f == 1) plugin[selectedItem]->SetState(STATE_SELECTED);
++}
++
++void GuiPluginBrowser::ResetState()
++{
++	LOCK( this );
++	if (state != STATE_DISABLED)
++	{
++		state = STATE_DEFAULT;
++		stateChan = -1;
++	}
++
++	for (int i = 0; i < pagesize; ++i)
++	{
++		plugin[i]->ResetState();
++	}
++}
++
++int GuiPluginBrowser::GetClickedOption()
++{
++	int found = -1;
++	for (int i = 0; i < pagesize; ++i)
++	{
++		if (plugin[i]->GetState() == STATE_CLICKED)
++		{
++			plugin[i]->SetState(STATE_SELECTED);
++			found = listOffset + i;
++			break;
++		}
++	}
++	return found;
++}
++
++void GuiPluginBrowser::onListChange(int SelItem, int SelInd)
++{
++	selectedItem = SelItem;
++	listOffset = SelInd;
++	UpdateListEntries();
++}
++
++void GuiPluginBrowser::setListOffset(int off)
++{
++	LOCK(this);
++	listOffset = LIMIT(off, 0, MAX(0, m_plugin.PluginsSize()-pagesize));
++}
++
++void GuiPluginBrowser::SetSelectedOption(int ind)
++{
++	LOCK(this);
++	selectedItem = LIMIT(ind, 0, MIN(pagesize, MAX(0, m_plugin.PluginsSize()-1)));
++}
++
++/**
++ * Draw the button on screen
++ */
++void GuiPluginBrowser::Draw()
++{
++	LOCK( this );
++	if (!this->IsVisible() || !m_plugin.PluginsSize()) return;
++
++	bgPluginsImg->Draw();
++
++	for (int i = 0, next = listOffset; i < pagesize; ++i, ++next)
++	{
++		if (next < m_plugin.PluginsSize())
++			plugin[i]->Draw();
++	}
++
++	scrollBar.Draw();
++
++	this->UpdateEffects();
++}
++
++void GuiPluginBrowser::UpdateListEntries()
++{
++	for (int i = 0, next = listOffset; i < pagesize; ++i, ++next)
++	{
++		if (next < m_plugin.PluginsSize())
++		{
++			if (plugin[i]->GetState() == STATE_DISABLED)
++			{
++				plugin[i]->SetVisible(true);
++				plugin[i]->SetState(STATE_DEFAULT);
++			}
++			pluginTxt[i]->SetText(m_plugin.GetPluginName(next).c_str());// plugin displayname
++			pluginTxt[i]->SetPosition(24, 0);
++			pluginTxtOver[i]->SetText(m_plugin.GetPluginName(next).c_str());
++			pluginTxtOver[i]->SetPosition(24, 0);
++		}
++		else
++		{
++			plugin[i]->SetVisible(false);
++			plugin[i]->SetState(STATE_DISABLED);
++		}
++	}
++}
++
++void GuiPluginBrowser::Update(GuiTrigger * t)
++{
++	LOCK( this );
++	if (state == STATE_DISABLED || !t || !m_plugin.PluginsSize()) return;
++
++	static int pressedChan = -1;
++
++	if((t->wpad.btns_d & (WPAD_BUTTON_B | WPAD_BUTTON_DOWN | WPAD_BUTTON_UP | WPAD_BUTTON_LEFT | WPAD_BUTTON_RIGHT |
++						  WPAD_CLASSIC_BUTTON_B | WPAD_CLASSIC_BUTTON_UP | WPAD_CLASSIC_BUTTON_DOWN | WPAD_CLASSIC_BUTTON_LEFT | WPAD_CLASSIC_BUTTON_RIGHT)) ||
++		(t->pad.btns_d & (PAD_BUTTON_UP | PAD_BUTTON_DOWN)))
++		pressedChan = t->chan;
++
++	// update the location of the scroll box based on the position in the option list
++	scrollBar.Update(t);
++
++	if(pressedChan == -1 || (!t->wpad.btns_h && !t->pad.btns_h))
++	{
++		for (int i = 0, next = listOffset; i < pagesize; ++i, ++next)
++		{
++			if (next >= m_plugin.PluginsSize())
++				break;
++
++			if (i != selectedItem && plugin[i]->GetState() == STATE_SELECTED)
++				plugin[i]->ResetState();
++			else if (i == selectedItem && plugin[i]->GetState() == STATE_DEFAULT)
++				plugin[selectedItem]->SetState(STATE_SELECTED, -1);
++
++			plugin[i]->Update(t);
++
++			if (plugin[i]->GetState() == STATE_SELECTED)
++				selectedItem = i;
++		}
++	}
++
++	if(pressedChan == t->chan && !t->wpad.btns_d && !t->wpad.btns_h)
++		pressedChan = -1;
++
++	scrollBar.SetPageSize(pagesize);
++	scrollBar.SetSelectedItem(selectedItem);
++	scrollBar.SetSelectedIndex(listOffset);
++	scrollBar.SetEntryCount(m_plugin.PluginsSize());
++
++	if (updateCB) updateCB(this);
++}
++
+diff --git a/source/plugin/PluginBrowser.hpp b/source/plugin/PluginBrowser.hpp
+new file mode 100644
+index 00000000..d1f6a28f
+--- /dev/null
++++ b/source/plugin/PluginBrowser.hpp
+@@ -0,0 +1,43 @@
++#ifndef _GUIPLUGINBROWSER_H_
++#define _GUIPLUGINBROWSER_H_
++
++#include "GUI/gui.h"
++#include "GUI/gui_scrollbar.hpp"
++
++class GuiPluginBrowser : public GuiElement, public sigslot::has_slots<>// GUIGameBrowser
++{
++	public:
++		GuiPluginBrowser(int w, int h);
++		virtual ~GuiPluginBrowser();
++		int GetClickedOption();
++		int GetSelectedOption() { return listOffset+selectedItem; }
++		void SetSelectedOption(int ind);
++		void setListOffset(int off);
++		int getListOffset() const { return listOffset; }
++		void ResetState();
++		void SetFocus(int f);
++		void Draw();
++		void Update(GuiTrigger * t);
++	protected:
++		void onListChange(int SelItem, int SelInd);
++		void UpdateListEntries();
++		int selectedItem;
++		int listOffset;
++		int pagesize;
++		int maxTextWidth;
++
++		GuiButton ** plugin;
++		GuiText ** pluginTxt;
++		GuiText ** pluginTxtOver;
++		GuiImage ** pluginBg;
++
++		GuiImage * bgPluginsImg;
++
++		GuiImageData * bgPlugins;
++		GuiImageData * bgPluginsEntry;
++
++		GuiTrigger * trigA;
++
++		GuiScrollbar scrollBar;
++};
++#endif
+diff --git a/source/plugin/PluginPrompt.cpp b/source/plugin/PluginPrompt.cpp
+new file mode 100644
+index 00000000..9d4c93cc
+--- /dev/null
++++ b/source/plugin/PluginPrompt.cpp
+@@ -0,0 +1,106 @@
++/****************************************************************************
++ * Copyright (C) 2016
++ * by Fledge68
++ *
++ * This software is provided 'as-is', without any express or implied
++ * warranty. In no event will the authors be held liable for any
++ * damages arising from the use of this software.
++ *
++ * Permission is granted to anyone to use this software for any
++ * purpose, including commercial applications, and to alter it and
++ * redistribute it freely, subject to the following restrictions:
++ *
++ * 1. The origin of this software must not be misrepresented; you
++ * must not claim that you wrote the original software. If you use
++ * this software in a product, an acknowledgment in the product
++ * documentation would be appreciated but is not required.
++ *
++ * 2. Altered source versions must be plainly marked as such, and
++ * must not be misrepresented as being the original software.
++ *
++ * 3. This notice may not be removed or altered from any source
++ * distribution.
++ ***************************************************************************/
++#include <unistd.h>
++#include "PluginPrompt.hpp"
++#include "language/gettext.h"
++#include "themes/gettheme.h"
++#include "themes/Resources.h"
++#include "menu/menus.h"
++#include "plugin/plugin.hpp"
++
++PluginPrompt::PluginPrompt()
++	: GuiWindow(0, 0)
++{
++	trigA.SetSimpleTrigger(-1, WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A, PAD_BUTTON_A);
++	trigB.SetButtonOnlyTrigger(-1, WPAD_BUTTON_B | WPAD_CLASSIC_BUTTON_B, PAD_BUTTON_B);
++
++	btnOutline = Resources::GetImageData("button_dialogue_box.png");
++	bgImgData = Resources::GetImageData("categoryPrompt.png");
++
++	bgImg = new GuiImage(bgImgData);
++	Append(bgImg);
++
++	width = bgImg->GetWidth();
++	height = bgImg->GetHeight();
++
++	titleTxt = new GuiText(tr("Select Plugin"), 30, thColor("r=0 g=0 b=0 a=255 - plugin prompt title text color"));
++	titleTxt->SetAlignment(thAlign("center - plugin prompt title text align hor"), thAlign("top - plugin prompt title text align ver"));
++	titleTxt->SetPosition(thInt("0 - plugin prompt title text pos x"), thInt("10 - plugin prompt title text pos y"));
++	Append(titleTxt);
++
++	browser = new GuiPluginBrowser(thInt("396 - plugin browser width"),thInt("280 - plugin browser height"));
++	browser->SetAlignment(thAlign("center - plugin browser align hor"), thAlign("top - plugin browser align ver"));
++	browser->SetPosition(thInt("0 - plugin browser pos x"), thInt("45 - plugin browser pos y"));
++	Append(browser);
++
++	backImg = new GuiImage(btnOutline);
++	backImg->SetAlignment(ALIGN_LEFT, ALIGN_MIDDLE);
++	backImg->SetScale(0.9f);
++	backTxt = new GuiText(tr("Cancel"), 22, thColor("r=0 g=0 b=0 a=255 - plugin cancel button text color"));
++	backBtn = new GuiButton(backImg->GetWidth()*0.9f, backImg->GetHeight()*0.9f);
++	backBtn->SetImage(backImg);
++	backBtn->SetLabel(backTxt);
++	backBtn->SetAlignment(thAlign("center - plugin cancel button align hor"), thAlign("bottom - plugin cancel button align ver"));
++	backBtn->SetPosition(thInt("110 - plugin cancel button pos x"), thInt("-20 - plugin cancel button pos y"));
++	backBtn->SetSoundOver(btnSoundOver);
++	backBtn->SetSoundClick(btnSoundClick);
++	backBtn->SetTrigger(&trigA);
++	backBtn->SetTrigger(&trigB);
++	backBtn->SetEffectGrow();
++	Append(backBtn);
++}
++
++PluginPrompt::~PluginPrompt()
++{
++	RemoveAll();
++	delete browser;
++
++	delete btnOutline;
++	delete bgImgData;
++	
++	delete bgImg;
++	delete titleTxt;
++	delete backTxt;
++	delete backImg;
++	delete backBtn;
++}
++
++int PluginPrompt::Show()
++{
++	while(backBtn->GetState() != STATE_CLICKED)
++	{
++		usleep(10000);
++
++		if (shutdown)
++			Sys_Shutdown();
++		else if (reset)
++			Sys_Reboot();
++			
++		int pluginClicked = browser ? browser->GetClickedOption() : -1;
++
++		if(pluginClicked >= 0 && pluginClicked < m_plugin.PluginsSize())
++			return pluginClicked;
++	}
++	return -1;
++}
+diff --git a/source/plugin/PluginPrompt.hpp b/source/plugin/PluginPrompt.hpp
+new file mode 100644
+index 00000000..1bc0d81f
+--- /dev/null
++++ b/source/plugin/PluginPrompt.hpp
+@@ -0,0 +1,53 @@
++/****************************************************************************
++ * Copyright (C) 2016
++ * by Fledge68
++ *
++ * This software is provided 'as-is', without any express or implied
++ * warranty. In no event will the authors be held liable for any
++ * damages arising from the use of this software.
++ *
++ * Permission is granted to anyone to use this software for any
++ * purpose, including commercial applications, and to alter it and
++ * redistribute it freely, subject to the following restrictions:
++ *
++ * 1. The origin of this software must not be misrepresented; you
++ * must not claim that you wrote the original software. If you use
++ * this software in a product, an acknowledgment in the product
++ * documentation would be appreciated but is not required.
++ *
++ * 2. Altered source versions must be plainly marked as such, and
++ * must not be misrepresented as being the original software.
++ *
++ * 3. This notice may not be removed or altered from any source
++ * distribution.
++ ***************************************************************************/
++#ifndef PLUGIN_PROMPT_HPP_
++#define PLUGIN_PROMPT_HPP_
++
++#include "plugin/PluginBrowser.hpp"
++
++class PluginPrompt : public GuiWindow
++{
++	public:
++		PluginPrompt();
++		virtual ~PluginPrompt();
++		int Show();
++	protected:
++		GuiPluginBrowser *browser;
++	private:
++		GuiImageData *bgImgData;
++		GuiImageData *btnOutline;
++
++		GuiImage *bgImg;
++		GuiImage *backImg;
++
++		GuiButton *backBtn;
++
++		GuiText *titleTxt;
++		GuiText *backTxt;
++
++		GuiTrigger trigA;
++		GuiTrigger trigB;
++};
++
++#endif
+diff --git a/source/plugin/PluginTitles.cpp b/source/plugin/PluginTitles.cpp
+new file mode 100644
+index 00000000..17a8fd40
+--- /dev/null
++++ b/source/plugin/PluginTitles.cpp
+@@ -0,0 +1,127 @@
++// PluginTitles.cpp
++#include "PluginTitles.h"
++#include <fstream>
++#include <sstream>
++#include <string>
++#include <unordered_map>
++#include <algorithm>
++#include <cctype>
++#include "utils/Logger.h"
++
++CPluginTitles customTitles;
++
++// 转换字符串为小写
++std::string ToLower(const std::string& str) {
++    std::string lowerStr = str;
++    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
++    return lowerStr;
++}
++
++CPluginTitles::CPluginTitles() {
++    // 构造函数
++}
++
++CPluginTitles::~CPluginTitles() {
++    // 析构函数
++}
++
++// 加载自定义标题文件
++// 参数: filePath - 标题文件的路径
++// 返回值: 成功加载返回true，否则返回false
++bool CPluginTitles::LoadCustomTitles(const char* filePath) {
++    // 打开自定义标题文件
++    std::ifstream file(filePath);
++    // 如果文件无法打开，则记录错误并返回false
++    if (!file.is_open()) {
++        WriteLog("ERROR", "无法打开自定义标题文件: %s", filePath);
++        return false;
++    }
++    // 记录开始加载自定义标题文件的信息
++    WriteLog("INFO", "开始加载自定义标题文件: %s", filePath);
++
++    // 定义字符串变量以存储每一行的内容
++    std::string line;
++    // 定义变量以存储当前的魔法词（区块名称）
++    std::string currentMagicWord;
++    // 定义无序映射以存储当前区块的内容
++    std::unordered_map<std::string, std::string> currentBlock;
++
++    // 逐行读取文件内容
++    while (std::getline(file, line)) {
++        // 清理换行符和空格
++        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
++        line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
++
++        // 修剪字符串前后空格
++        auto trim = [](std::string& s) {
++            s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) { return !std::isspace(ch); }));
++            s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
++        };
++        trim(line);
++
++        // 忽略空行或注释行
++        if (line.empty() || line[0] == '#' || line[0] == ';')
++            continue;
++
++        // 处理区块头
++        if (line[0] == '[' && line.back() == ']') {
++            // 如果当前魔法词和区块不为空，则将当前区块存入自定义标题映射，并清空当前区块
++            if (!currentMagicWord.empty() && !currentBlock.empty()) {
++                customTitlesMap[ToLower(currentMagicWord)] = currentBlock; // 转为小写
++                currentBlock.clear();
++            }
++            // 更新当前魔法词为新的区块名称
++            currentMagicWord = line.substr(1, line.size() - 2);
++            continue;
++        }
++
++        // 解析键值对
++        size_t eqPos = line.find('=');
++        if (eqPos != std::string::npos) {
++            std::string title = line.substr(0, eqPos);
++            std::string customTitle = line.substr(eqPos + 1);
++            trim(title);
++            trim(customTitle);
++            // 将解析出的键值对存入当前区块
++            currentBlock[title] = customTitle; // 存入内层 map
++        }
++    }
++
++    // 处理最后一个区块
++    if (!currentMagicWord.empty() && !currentBlock.empty()) {
++        customTitlesMap[ToLower(currentMagicWord)] = currentBlock; // 转为小写
++    }
++
++    // 记录自定义标题文件加载完成的信息
++    WriteLog("INFO", "自定义标题文件加载完成: %s", filePath);
++    return true;
++}
++
++const char* CPluginTitles::GetCustomTitle(const char* magicWord, const char* defaultTitle) const {
++    if (!magicWord || !defaultTitle) {
++        WriteLog("WARNING", "非法输入参数 magicWord=%p defaultTitle=%p", magicWord, defaultTitle);
++        return defaultTitle;
++    }
++
++    // 转换 MagicWord 为小写
++    std::string trimmedMagicWord = ToLower(magicWord);
++
++    // 外层查找
++    auto outerIt = customTitlesMap.find(trimmedMagicWord);
++    if (outerIt == customTitlesMap.end()) {
++        return defaultTitle;
++    }
++
++    // 内层查找
++    const auto& innerMap = outerIt->second;
++    auto innerIt = innerMap.find(defaultTitle);
++    if (innerIt == innerMap.end()) {
++        return defaultTitle;
++    }
++
++    // 命中结果，格式化为 新标题 (原标题)
++    static std::string formattedTitle;
++    formattedTitle = innerIt->second + " (" + std::string(defaultTitle) + ")";
++
++    return formattedTitle.c_str();
++}
+\ No newline at end of file
+diff --git a/source/plugin/PluginTitles.h b/source/plugin/PluginTitles.h
+new file mode 100644
+index 00000000..10c3c137
+--- /dev/null
++++ b/source/plugin/PluginTitles.h
+@@ -0,0 +1,33 @@
++
++#ifndef _PLUGINTITLES_H_
++#define _PLUGINTITLES_H_
++
++#include <string>
++#include <unordered_map>
++
++class CPluginTitles {
++public:
++    CPluginTitles();
++    ~CPluginTitles();
++
++    // 加载自定义标题配置文件
++    bool LoadCustomTitles(const char* filePath);
++    
++    // 获取自定义标题，如果没有找到则返回默认标题
++    const char* GetCustomTitle(const char* magicWord, const char* defaultTitle) const;
++
++// private:
++//     std::unordered_map<std::string, std::string> customTitlesMap;
++private:
++    // 外层键: magicWord (如 "43505331")
++    // 内层键: 原始标题 (如 "1941")
++    std::unordered_map<
++        std::string, 
++        std::unordered_map<std::string, std::string>
++    > customTitlesMap;   
++};
++
++// 全局实例声明
++extern CPluginTitles customTitles;
++
++#endif // _PLUGINTITLES_H_
+\ No newline at end of file
+diff --git a/source/plugin/plugin.cpp b/source/plugin/plugin.cpp
+new file mode 100644
+index 00000000..9ba6507c
+--- /dev/null
++++ b/source/plugin/plugin.cpp
+@@ -0,0 +1,1213 @@
++/****************************************************************************
++ * Copyright (C) 2012 FIX94
++ * Copyright (C) 2016 Fledge68
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ * 
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ ****************************************************************************/
++#include <stdio.h>
++#include <string.h>
++#include <algorithm>
++#include <dirent.h>
++#include <unistd.h>
++#include <malloc.h>
++#include "plugin.hpp"
++#define ALIGN32(x) (((x) + 31) & ~31)
++#include "utils/StringTools.h"
++#include "settings/CSettings.h"
++#include "Controls/DeviceHandler.hpp"
++#include "homebrewboot/BootHomebrew.h"
++#include "FileOperations/fileops.h"
++#include "utils/Logger.h"
++#include "gecko.h"
++#include "utils/wifi_gecko.h"
++
++Plugin m_plugin;
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Helper: magic (u32) → 8-char hex key (uppercase), e.g. 0x4D414D57 → "4D414D57"
++// ─────────────────────────────────────────────────────────────────────────────
++string Plugin::magicToKey(u32 magic)
++{
++	char buf[9];
++	snprintf(buf, sizeof(buf), "%08X", (unsigned int)magic);
++	buf[8] = '\0';
++	return string(buf);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Helper: build per-plugin cache file path  <PluginsPath>lists/<MAGIC>.db
++// ─────────────────────────────────────────────────────────────────────────────
++string Plugin::buildCacheFilePath(u32 magic)
++{
++	string key = magicToKey(magic);
++	char path[512];
++	// PluginsPath already ends with '/', so just append "lists/<MAGIC>.db"
++	snprintf(path, sizeof(path), "%slists/%s.db", Settings.PluginsPath, key.c_str());
++	return string(path);
++}
++
++string Plugin::buildCacheFilePath(const char *key)
++{
++	char path[512];
++	snprintf(path, sizeof(path), "%slists/%s.db", Settings.PluginsPath, key);
++	return string(path);
++}
++
++// 缓存版本号，格式变更时递增此值
++#define PLUGIN_CACHE_VERSION 2
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Helper: get or create a PluginGameCache entry for |magic|
++// ─────────────────────────────────────────────────────────────────────────────
++PluginGameCache* Plugin::getOrCreateCache(u32 magic)
++{
++	string key = magicToKey(magic);
++	map<string, PluginGameCache>::iterator it = perPluginCache.find(key);
++	if (it != perPluginCache.end())
++		return &it->second;
++
++	// Create fresh entry
++	PluginGameCache cache;
++	cache.cacheValid  = false;
++	cache.cacheLoaded = false;
++	map<string, PluginGameCache>::value_type v(key, cache);
++	std::pair<map<string, PluginGameCache>::iterator, bool> result = perPluginCache.insert(v);
++	return &result.first->second;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Helper: save one plugin's cache to disk - 简化版
++// 直接序列化 PluginDiscHdr 数组，路径已集成在 path 字段中
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::savePluginCache(u32 magic, const vector<PluginDiscHdr*>& list)
++{
++	string cachePath = buildCacheFilePath(magic);
++
++	// Ensure lists/ directory exists
++	char listDir[512];
++	snprintf(listDir, sizeof(listDir), "%slists", Settings.PluginsPath);
++	mkdir(listDir, 0755);
++
++	FILE* fp = fopen(cachePath.c_str(), "wb");
++	if (!fp) {
++		WriteLog("WARNING", "[CACHE] cannot open cache for save: %s", cachePath.c_str());
++		return false;
++	}
++
++	// 写入版本号
++	u32 version = PLUGIN_CACHE_VERSION;
++	if (fwrite(&version, sizeof(u32), 1, fp) != 1) {
++		fclose(fp);
++		return false;
++	}
++
++	u32 count = (u32)list.size();
++	if (fwrite(&count, sizeof(u32), 1, fp) != 1) {
++		fclose(fp);
++		return false;
++	}
++	// 直接写入整个 PluginDiscHdr 数组，类似 CCache::SaveAll
++	for (u32 i = 0; i < count; ++i) {
++		if (fwrite(list[i], sizeof(PluginDiscHdr), 1, fp) != 1) {
++			WriteLog("WARNING", "[CACHE] write failed at entry %d", i);
++			fclose(fp);
++			return false;
++		}
++		// 移除 fflush，避免 USB 写入阻塞 UI 线程
++		if ((i + 1) % 50 == 0 || i + 1 == count) {
++			WriteLog("INFO", "[CACHE] save progress: %d/%d", i + 1, count);
++		}
++	}
++	fclose(fp);
++	WriteLog("INFO", "[CACHE] saved plugin cache: %d ROMs → %s", count, cachePath.c_str());
++	return true;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Helper: load one plugin's cache from disk - 简化版
++// 直接读取 PluginDiscHdr 数组，类似 CCache::LoadAll
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::loadPluginCache(u32 magic, vector<PluginDiscHdr*>& outList)
++{
++	string cachePath = buildCacheFilePath(magic);
++	FILE* fp = fopen(cachePath.c_str(), "rb");
++	if (!fp) {
++		WriteLog("INFO", "[CACHE] no disk cache found: %s", cachePath.c_str());
++		return false;
++	}
++
++	// 读取版本号
++	u32 version;
++	if (fread(&version, sizeof(u32), 1, fp) != 1) {
++		fclose(fp);
++		WriteLog("WARNING", "[CACHE] failed to read version from: %s", cachePath.c_str());
++		return false;
++	}
++
++	// 版本不匹配，删除旧缓存
++	if (version != PLUGIN_CACHE_VERSION) {
++		fclose(fp);
++		WriteLog("WARNING", "[CACHE] cache version mismatch (got %d, expected %d), deleting: %s",
++		         version, PLUGIN_CACHE_VERSION, cachePath.c_str());
++		deletePluginCache(cachePath.c_str());
++		return false;
++	}
++
++	u32 count;
++	if (fread(&count, sizeof(u32), 1, fp) != 1) {
++		fclose(fp);
++		return false;
++	}
++	WriteLog("INFO", "[CACHE] loading plugin cache: %s (%d ROMs)", cachePath.c_str(), count);
++
++	outList.clear();
++	outList.reserve(count);
++
++	for (u32 i = 0; i < count; ++i) {
++		PluginDiscHdr* hdr = (PluginDiscHdr*)memalign(32, ALIGN32(sizeof(PluginDiscHdr)));
++		if (!hdr) {
++			WriteLog("WARNING", "[CACHE] memalign failed at entry %d/%d", i, count);
++			break;
++		}
++		if (fread(hdr, sizeof(PluginDiscHdr), 1, fp) != 1) {
++			WriteLog("WARNING", "[CACHE] read failed at entry %d", i);
++			free(hdr);
++			break;
++		}
++		outList.push_back(hdr);
++		if ((i + 1) % 100 == 0 || i + 1 == count)
++			WriteLog("INFO", "[CACHE] progress: %d/%d loaded", i + 1, count);
++	}
++	fclose(fp);
++
++	bool ok = !outList.empty();
++	if (ok)
++		WriteLog("INFO", "[CACHE] plugin cache loaded: %d ROMs", outList.size());
++	return ok;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Helper: delete a single plugin's cache file
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::deletePluginCache(const char *key)
++{
++	string cachePath = buildCacheFilePath(key);
++	int rc = remove(cachePath.c_str());
++	if (rc == 0)
++		WriteLog("INFO", "[CACHE] deleted plugin cache: %s", cachePath.c_str());
++	return (rc == 0);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// IsRomExists: check if the ROM file still exists on disk
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::IsRomExists(const char *path)
++{
++	if (!path || path[0] == '\0') {
++		WriteLog("WARNING", "[CACHE] IsRomExists: path is NULL or empty");
++		return false;
++	}
++	bool exists = CheckFile(path);
++	if (!exists) {
++		WriteLog("WARNING", "[CACHE] IsRomExists: file does not exist: %s", path);
++	}
++	return exists;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// invalidatePluginCache: remove in-memory cache and disk file for one plugin
++// ─────────────────────────────────────────────────────────────────────────────
++void Plugin::invalidatePluginCache(u32 magic)
++{
++	string key = magicToKey(magic);
++	map<string, PluginGameCache>::iterator it = perPluginCache.find(key);
++	if (it != perPluginCache.end()) {
++		// Free in-memory data
++		for (size_t i = 0; i < it->second.romList.size(); ++i)
++			free(it->second.romList[i]);
++		it->second.romList.clear();
++		it->second.cacheValid = false;
++		it->second.cacheLoaded = false;
++	}
++	// Delete disk cache file
++	deletePluginCache(magicToKey(magic).c_str());
++	WriteLog("INFO", "[CACHE] invalidated plugin cache for magic=%08X", magic);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Initialize the plugin system
++// ─────────────────────────────────────────────────────────────────────────────
++void Plugin::Init()
++{
++	Plugins.clear();
++	PluginMagicWord[8] = '\0';
++	adding = true;
++	scanning = false;
++
++	char titlespath[300];
++	snprintf(titlespath, sizeof(titlespath), "%scustom_titles.ini", Settings.ConfigPath);
++	WriteLog("INFO", "成功找到自定义标题文件 %s\n", titlespath);
++	customTitles.LoadCustomTitles(titlespath);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// wchar string compare (case-insensitive)
++// ─────────────────────────────────────────────────────────────────────────────
++static bool wchar_cmp(const wchar_t *first, const wchar_t *second, u32 first_len, u32 second_len)
++{
++	u32 i = 0;
++	while((i < first_len) && (i < second_len))
++	{
++		if(tolower(first[i]) < tolower(second[i])) return true;
++		else if(tolower(first[i]) > tolower(second[i])) return false;
++		++i;
++	}
++	return first_len < second_len;
++}
++
++static bool PluginOptions_cmp(PluginOptions lhs, PluginOptions rhs)
++{
++	const wchar_t *first  = lhs.DisplayName.c_str();
++	const wchar_t *second = rhs.DisplayName.c_str();
++	return wchar_cmp(first, second, wcslen(first), wcslen(second));
++}
++
++void Plugin::EndAdd()
++{
++	std::sort(Plugins.begin(), Plugins.end(), PluginOptions_cmp);
++	adding = false;
++}
++
++void Plugin::Cleanup()
++{
++	Plugins.clear();
++	adding = true;
++	scanning = false;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// AddPlugin: parse one .ini file
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::AddPlugin(const char *filepath)
++{
++	if(!adding) return false;
++
++	PluginOptions NewPlugin;
++	FILE *file = fopen(filepath, "r");
++	if (!file) return false;
++
++	string PluginName;
++	NewPlugin.romPartition = Settings.PluginRomPart;
++	char line[256], temp[256], name[256], value[256];
++
++	while (fgets(line, sizeof(line), file))
++	{
++		if (line[0] == '#') continue;
++		if (line[0] == '[') continue;
++
++		strncpy(temp, line, sizeof(temp));
++		char *eq = strchr(temp, '=');
++		if (!eq) continue;
++
++		*eq = 0;
++		this->TrimLine(name, temp, sizeof(name));
++		this->TrimLine(value, eq + 1, sizeof(value));
++
++		if      (strcmp(name, "dolfile")      == 0) NewPlugin.DolName       = value;
++		else if (strcmp(name, "coverfolder")  == 0) NewPlugin.coverFolder   = value;
++		else if (strcmp(name, "magic")        == 0) {
++			strncpy(PluginMagicWord, value, 8);
++			PluginMagicWord[8] = '\0';
++			NewPlugin.magic = strtoul(value, NULL, 16);
++		}
++		else if (strcmp(name, "romdir")       == 0) NewPlugin.romDir        = value;
++		else if (strcmp(name, "filetypes")    == 0) NewPlugin.fileTypes     = value;
++		else if (strcmp(name, "rompartition") == 0) NewPlugin.romPartition  = strtol(value, NULL, 10);
++		else if (strcmp(name, "displayname")  == 0) PluginName              = value;
++		else if (strcmp(name, "arguments")    == 0) NewPlugin.Args          = value;
++		else if (strcmp(name, "group")        == 0) NewPlugin.group         = value;
++	}
++	fclose(file);
++
++	if(PluginName.size() < 2)
++	{
++		PluginName = NewPlugin.DolName;
++		PluginName.erase(PluginName.end() - 4, PluginName.end());
++	}
++	NewPlugin.DisplayName.fromUTF8(PluginName.c_str());
++
++	// Ignore reserved magic words
++	if(strncasecmp(PluginMagicWord, "4E47434D", 8) == 0) return false;
++	if(strncasecmp(PluginMagicWord, "4E574949", 8) == 0) return false;
++	if(strncasecmp(PluginMagicWord, "4E414E44", 8) == 0) return false;
++	if(strncasecmp(PluginMagicWord, "454E414E", 8) == 0) return false;
++	if(strncasecmp(PluginMagicWord, "4D555343", 8) == 0) return false;
++
++	Plugins.push_back(NewPlugin);
++	return true;
++}
++
++void Plugin::TrimLine(char *dest, char *src, int size)
++{
++	while (*src == ' ') src++;
++	int len = strlen(src);
++	while (len > 0 && strchr(" \r\n", src[len - 1])) len--;
++	if (len >= size) len = size - 1;
++	strncpy(dest, src, len);
++	dest[len] = 0;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Getters
++// ─────────────────────────────────────────────────────────────────────────────
++s8 Plugin::GetPluginPosition(u32 magic)
++{
++	for(u8 pos = 0; pos < Plugins.size(); pos++)
++		if(magic == Plugins[pos].magic) return (s8)pos;
++	return -1;
++}
++
++u32 Plugin::GetPluginMagic(u8 pos) { return Plugins[pos].magic; }
++
++const char *Plugin::GetDolName(u32 magic)
++{
++	if((Plugin_Pos = GetPluginPosition(magic)) >= 0)
++		return Plugins[Plugin_Pos].DolName.c_str();
++	return NULL;
++}
++
++const char *Plugin::GetCoverFolderName(u32 magic)
++{
++	if((Plugin_Pos = GetPluginPosition(magic)) >= 0)
++		return Plugins[Plugin_Pos].coverFolder.c_str();
++	return NULL;
++}
++
++const char *Plugin::GetRomPath(const char *title)
++{
++	if(!title || title[0] == '\0') return "";
++	if(pluginsGameList.empty()) {
++		WriteLog("WARNING", "[CACHE] GetRomPath: pluginsGameList is empty!");
++		return "";
++	}
++	for(u32 i = 0; i < pluginsGameList.size(); i++)
++		if(strcasecmp((const char*)pluginsGameList[i]->title, title) == 0) {
++			if(pluginsGameList[i]->path[0] != '\0')
++				return pluginsGameList[i]->path;
++			WriteLog("WARNING", "[CACHE] GetRomPath: path field is empty for title='%s'", title);
++			return "";
++		}
++	WriteLog("WARNING", "[CACHE] GetRomPath NOT FOUND: title='%s'", title);
++	return "";
++}
++
++wString Plugin::GetPluginName(u8 pos) { return Plugins[pos].DisplayName; }
++
++int Plugin::GetRomPartition(u8 pos) { return Plugins[pos].romPartition; }
++
++const char *Plugin::GetRomDir(u8 pos) { return Plugins[pos].romDir.c_str(); }
++
++const string& Plugin::GetFileTypes(u8 pos) { return Plugins[pos].fileTypes; }
++
++const char* Plugin::GetPluginGroup(u8 pos)
++{
++	if (pos >= Plugins.size()) return "";
++	return Plugins[pos].group.c_str();
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// SNES / GB cover magic detection
++// ─────────────────────────────────────────────────────────────────────────────
++static const char SNESCovers[4][9] = {
++"534e5854", //Snes9X-Next
++"534e4553", //SNES9xGX
++"4e4f3634", //Not64
++"57493634"  //Wii64
++};
++
++static const char GBCovers[12][9] = {
++"474d4254", "474d4264", "474d4274", "56425854", "56424158", "56424168",
++"56424178", "56424188", "4d45445e", "4d45446e", "4d45447e", "57495358"
++};
++
++bool Plugin::SNESCover(const char *magic)
++{
++	if(magic == NULL) return false;
++	for(int i = 0; i < 4; i++)
++		if(strncasecmp(magic, SNESCovers[i], 8) == 0) return true;
++	return false;
++}
++
++bool Plugin::GBCover(const char *magic)
++{
++	if(magic == NULL) return false;
++	for(int i = 0; i < 12; i++)
++		if(strncasecmp(magic, GBCovers[i], 8) == 0) return true;
++	return false;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// CreateArgs: substitute {device}/{path}/{name}/{name_no_ext}/{loader}
++// ─────────────────────────────────────────────────────────────────────────────
++vector<string> Plugin::CreateArgs(const char *device, const char *path,
++			const char *title, const char *loader, u32 title_len_no_ext, u32 magic)
++{
++	vector<string> args;
++	Plugin_Pos = GetPluginPosition(magic);
++	if(Plugin_Pos < 0) return args;
++
++	vector<string> PluginArgs = stringToVector(Plugins[Plugin_Pos].Args, '|');
++	for(vector<string>::const_iterator arg = PluginArgs.begin(); arg != PluginArgs.end(); ++arg)
++	{
++		string Argument(*arg);
++		if(Argument.find(PLUGIN_DEV)    != string::npos) Argument.replace(Argument.find(PLUGIN_DEV),    strlen(PLUGIN_DEV),    device);
++		if(Argument.find(PLUGIN_PATH)   != string::npos) Argument.replace(Argument.find(PLUGIN_PATH),   strlen(PLUGIN_PATH),   path);
++		if(Argument.find(PLUGIN_NAME)   != string::npos) Argument.replace(Argument.find(PLUGIN_NAME),   strlen(PLUGIN_NAME),   title);
++		if(Argument.find(PLUGIN_LDR)    != string::npos) Argument.replace(Argument.find(PLUGIN_LDR),    strlen(PLUGIN_LDR),    loader);
++		if(Argument.find(PLUGIN_NOEXT)  != string::npos) Argument.replace(Argument.find(PLUGIN_NOEXT), strlen(PLUGIN_NOEXT), title, title_len_no_ext);
++		args.push_back(Argument);
++	}
++	return args;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// ParseScummvmINI – unchanged from original
++// ─────────────────────────────────────────────────────────────────────────────
++vector<discHdr*> Plugin::ParseScummvmINI(const char *filepath, const char *Device, u32 Magic)
++{
++	vector<discHdr*> gameHeader;
++	FILE * file = fopen(filepath, "r");
++	if (!file) return gameHeader;
++
++	discHdr* ListElement = NULL;
++	char line[256], temp[256], name[256], value[256];
++	while(fgets(line, sizeof(line), file)) {
++		if(line[0] == '[') break;
++	}
++
++	while(1)
++	{
++		const char *GameDomain = NULL;
++		const char *GameName = NULL;
++		const char *GameDevice = NULL;
++		char *i = strchr(line, '[');
++		if(i == NULL) break;
++		strncpy(temp, i + 1, sizeof(temp));
++		char *closeBracket = strchr(temp, ']');
++		if (!closeBracket) break;
++		*closeBracket = '\0';
++		GameDomain = temp;
++
++		while(fgets(line, sizeof(line), file))
++		{
++			if(line[0] == '#') continue;
++			if(line[0] == '[') break;
++			strncpy(temp, line, sizeof(temp));
++			char *eq = strchr(temp, '=');
++			if (!eq) continue;
++			*eq = 0;
++			this->TrimLine(name, temp, sizeof(name));
++			this->TrimLine(value, eq + 1, sizeof(value));
++			if(strcmp(name, "description") == 0) GameName = value;
++			else if(strcmp(name, "path") == 0) {
++				GameDevice = value;
++				*strchr((char*)GameDevice, '/') = '\0';
++			}
++		}
++		if(strlen(GameName) < 2 || strncasecmp(Device, GameDevice, 2) != 0) continue;
++
++		ListElement = (discHdr*)memalign(32, ALIGN32(sizeof(discHdr)));
++		if (!ListElement) continue;
++		memset(ListElement, 0, sizeof(discHdr));
++		strncpy(ListElement->title, GameName, 63);
++		ListElement->magic = Magic;
++		romPathsList.push_back(fmt("%s/%s", GameDevice, GameDomain));
++		gameHeader.push_back(ListElement);
++	}
++	fclose(file);
++	return gameHeader;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// createPluginsList – unchanged from original
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::createPluginsList()
++{
++	if(!adding) return false;
++	char pluginFilePath[256];
++	DIR *pdir = opendir(Settings.PluginsPath);
++	if(pdir == NULL) return false;
++
++	dirent *pent = NULL;
++	const char *fileExt = NULL;
++	while((pent = readdir(pdir)) != NULL)
++	{
++		if(pent->d_name[0] == '.' || strcmp(pent->d_name, "scummvm.ini") == 0) continue;
++		snprintf(pluginFilePath, sizeof(pluginFilePath), "%s%s", Settings.PluginsPath, pent->d_name);
++		if(pent->d_type == DT_REG)
++		{
++			fileExt = strrchr(pent->d_name, '.');
++			if(fileExt != NULL && strcmp(fileExt, ".ini") == 0)
++				AddPlugin(pluginFilePath);
++		}
++	}
++	closedir(pdir);
++	EndAdd();
++	return true;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// IsFileSupported – check if a filename matches any supported extension
++static inline bool IsFileSupported(const char *File, const vector<string>& FileTypes)
++{
++	for(vector<string>::const_iterator cmp = FileTypes.begin(); cmp != FileTypes.end(); ++cmp)
++		if(strcasecmp(File, cmp->c_str()) == 0) return true;
++	return false;
++}
++
++void Plugin::scanPluginDirect(u8 pos, vector<discHdr*>& outList, vector<string>& outPaths)
++{
++	string romDir  = GetRomDir(pos);
++	u32      magic = GetPluginMagic(pos);
++	u32      part  = (u32)GetRomPartition(pos);
++
++	if (romDir.find("scummvm.ini") == string::npos) {
++		const char *fullRomDirPath = fmt("%s:/%s", DeviceName[part], romDir.c_str());
++		const vector<string> fileTypes = stringToVector(GetFileTypes(pos), '|');
++		char FullRomPath[256];
++		DIR *pdir = opendir(fullRomDirPath);
++		if (!pdir) return;
++		dirent *pent = NULL;
++		const char *fileExt = NULL;
++		while((pent = readdir(pdir)) != NULL)
++		{
++			if(pent->d_name[0] == '.') continue;
++			snprintf(FullRomPath, sizeof(FullRomPath), "%s/%s", fullRomDirPath, pent->d_name);
++			if(pent->d_type == DT_REG)
++			{
++				fileExt = strrchr(pent->d_name, '.');
++				if(fileExt == NULL) fileExt = pent->d_name;
++				if(IsFileSupported(fileExt, fileTypes))
++				{
++					discHdr* ListElement = (discHdr*)memalign(32, ALIGN32(sizeof(discHdr)));
++					if (!ListElement) continue;
++					memset(ListElement, 0, sizeof(discHdr));
++					const char *RomTitle = strrchr(FullRomPath, '/') + 1;
++					char titleCopy[128];
++					strncpy(titleCopy, RomTitle, sizeof(titleCopy)-1);
++					titleCopy[sizeof(titleCopy)-1] = '\0';
++					char *dot = strrchr(titleCopy, '.');
++					if (dot) *dot = '\0';
++					char magicWord[9];
++					snprintf(magicWord, sizeof(magicWord), "%08X", (unsigned int)magic);
++					const char *customTitle = customTitles.GetCustomTitle(magicWord, titleCopy);
++					if (customTitle && customTitle[0] != '\0')
++						strncpy(ListElement->title, customTitle, 63);
++					else
++						strncpy(ListElement->title, titleCopy, 63);
++					ListElement->title[63] = '\0';
++					ListElement->magic = magic;
++					strncpy(ListElement->path, FullRomPath, sizeof(ListElement->path)-1);
++					outList.push_back(ListElement);
++					outPaths.push_back(string(FullRomPath));
++				}
++			}
++		}
++		closedir(pdir);
++	} else {
++		vector<discHdr*> scummList = ParseScummvmINI(
++			fmt("%s%s", Settings.PluginsPath, "scummvm.ini"),
++			DeviceName[part], magic);
++		for (size_t hIdx = 0; hIdx < scummList.size(); ++hIdx) {
++			outList.push_back(scummList[hIdx]);
++			outPaths.push_back(string(scummList[hIdx]->title));
++		}
++	}
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// scanPluginAtIndex – full recursive scan mirroring original GetFiles + addRomToList
++// Writes results directly into the PluginGameCache entry.
++// ─────────────────────────────────────────────────────────────────────────────
++void Plugin::scanPluginAtIndex(u8 pos)
++{
++	string romDir  = GetRomDir(pos);
++	u32      magic = GetPluginMagic(pos);
++	u32      part  = (u32)GetRomPartition(pos);
++
++	PluginGameCache* cache = getOrCreateCache(magic);
++
++	if (romDir.find("scummvm.ini") == string::npos) {
++		// ── Recursive ROM dir scan ───────────────────────────────────────────
++		const char *fullRomDirPath = fmt("%s:/%s", DeviceName[part], romDir.c_str());
++		const vector<string> fileTypes = stringToVector(GetFileTypes(pos), '|');
++
++		// Save current state, scan into members, then copy to cache
++		vector<discHdr*> savedPluginList = pluginGameList;
++		vector<string>   savedRomPaths   = romPathsList;
++		pluginGameList.clear();
++		romPathsList.clear();
++		u32 totalSubdirs = 0;  // Reset subdir counter for each plugin scan
++		GetFiles(fullRomDirPath, fileTypes, magic, 0, &totalSubdirs);
++
++		// Copy results into cache - 转换为 PluginDiscHdr
++		WriteLog("INFO", "[SCANN] copying %u ROMs to cache...", (u32)pluginGameList.size());
++		
++		// 内存保护：限制每个插件最多缓存 500 个 ROM
++		const u32 MAX_ROMS_PER_PLUGIN = 500;
++		u32 copyCount = 0;
++		
++		for (size_t i = 0; i < pluginGameList.size(); ++i) {
++			if (copyCount >= MAX_ROMS_PER_PLUGIN) {
++				WriteLog("WARNING", "[SCANN] reached cache limit (%u), skipping remaining ROMs", MAX_ROMS_PER_PLUGIN);
++				break;
++			}
++			
++			PluginDiscHdr* pluginHdr = (PluginDiscHdr*)memalign(32, ALIGN32(sizeof(PluginDiscHdr)));
++			if (!pluginHdr) {
++				WriteLog("WARNING", "[SCANN] memalign failed at ROM %u/%u, stopping", (u32)(i + 1), (u32)pluginGameList.size());
++				break;
++			}
++			memcpy((discHdr*)pluginHdr, pluginGameList[i], sizeof(discHdr));
++			pluginHdr->pluginMagic = magic;
++			cache->romList.push_back(pluginHdr);
++			copyCount++;
++			
++			if (copyCount % 50 == 0 || copyCount == pluginGameList.size()) {
++				WriteLog("INFO", "[SCANN] copy progress: %u/%u", copyCount, (u32)pluginGameList.size());
++				fflush(stdout);
++			}
++		}
++		WriteLog("INFO", "[SCANN] copy completed: %u ROMs copied", (u32)cache->romList.size());
++
++		// Restore original lists
++		pluginGameList = savedPluginList;
++		romPathsList   = savedRomPaths;
++
++	} else {
++		// ── ScummVM ──────────────────────────────────────────────────────────
++		vector<discHdr*> scummList = ParseScummvmINI(
++			fmt("%s%s", Settings.PluginsPath, "scummvm.ini"),
++			DeviceName[part], magic);
++		for (size_t i = 0; i < scummList.size(); ++i) {
++			PluginDiscHdr* pluginHdr = (PluginDiscHdr*)memalign(32, ALIGN32(sizeof(PluginDiscHdr)));
++			if (pluginHdr) {
++				memcpy((discHdr*)pluginHdr, scummList[i], sizeof(discHdr));
++				pluginHdr->pluginMagic = magic;
++				strncpy(pluginHdr->path, romPathsList[romPathsList.size() - scummList.size() + i].c_str(), 
++				        sizeof(pluginHdr->path) - 1);
++				pluginHdr->path[sizeof(pluginHdr->path) - 1] = '\0';
++				cache->romList.push_back(pluginHdr);
++			}
++		}
++	}
++
++	cache->cacheValid = true;
++	string key = magicToKey(magic);
++	WriteLog("INFO", "[SCANN] plugin %d magic=%s done: %d ROMs",
++	         pos, key.c_str(), (int)cache->romList.size());
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// buildMergedList – filter per-plugin caches into pluginsGameList based on
++//                  enabledPlugin / pluginMergeGroup / ALL mode.
++// ─────────────────────────────────────────────────────────────────────────────
++void Plugin::buildMergedList()
++{
++	pluginsGameList.clear();
++	// romPathsList 不再需要，路径已集成在 discHdr->path 字段中
++
++	bool mergeByGroup = Settings.pluginShowMerged && (Settings.pluginMergeGroup[0] != '\0');
++	bool mergeAll     = Settings.pluginShowMerged &&
++	                    (strncasecmp(Settings.enabledPlugin, PLUGIN_MERGE_ALL_MAGIC, 3) == 0);
++
++	// Fallback: if enabledPlugin is empty, include all caches
++	if (Settings.enabledPlugin[0] == '\0' && !mergeByGroup && !mergeAll)
++		mergeAll = true;
++
++	for (map<string, PluginGameCache>::iterator kvIt = perPluginCache.begin(); kvIt != perPluginCache.end(); ++kvIt) {
++		const string& key   = kvIt->first;
++		PluginGameCache& cache = kvIt->second;
++		if (!cache.cacheValid || cache.romList.empty()) continue;
++
++		bool include = false;
++		if (mergeAll) {
++			include = true;
++		} else if (mergeByGroup) {
++			// Find plugin pos matching this magic
++			u32 magic = 0;
++			unsigned int magicTmp = 0;
++			sscanf(key.c_str(), "%08X", &magicTmp);
++			magic = (u32)magicTmp;
++			for (u8 i = 0; i < (u8)Plugins.size(); ++i) {
++				if (Plugins[i].magic == magic &&
++				    !Plugins[i].group.empty() &&
++				    strcasecmp(Plugins[i].group.c_str(), Settings.pluginMergeGroup) == 0) {
++					include = true;
++					break;
++				}
++			}
++		} else {
++			// Single-plugin mode
++			u32 enabledMagic = 0;
++			sscanf(Settings.enabledPlugin, "%08X", (unsigned int*)&enabledMagic);
++			if (enabledMagic == 0) {
++				// enabledPlugin is stored as hex string – try parsing
++				enabledMagic = (u32)strtoul(Settings.enabledPlugin, NULL, 16);
++			}
++			u32 cacheMagic = 0;
++			unsigned int cacheMagicTmp = 0;
++			sscanf(key.c_str(), "%08X", &cacheMagicTmp);
++			cacheMagic = (u32)cacheMagicTmp;
++			include = (cacheMagic == enabledMagic);
++		}
++
++		if (include) {
++			for (size_t i = 0; i < cache.romList.size(); ++i) {
++				// 复制 PluginDiscHdr 到新的 discHdr，避免指针转换问题
++				discHdr* newHdr = (discHdr*)memalign(32, ALIGN32(sizeof(discHdr)));
++				if (newHdr) {
++					memset(newHdr, 0, sizeof(discHdr));
++					memcpy(newHdr, cache.romList[i], sizeof(discHdr));
++					pluginsGameList.push_back(newHdr);
++				}
++			}
++		}
++	}
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// createPluginsGameList – NEW: per-plugin lazy-loading cache
++//
++// Flow:
++//   1. Determine which plugins are "target" based on enabledPlugin / merge mode.
++//   2. For each target plugin:
++//        a. Check per-plugin disk cache → if valid, load it.
++//        b. If no cache or forceRescan, scan the ROM dir, save cache, then load.
++//   3. buildMergedList() → populate pluginsGameList & romPathsList.
++//
++// This avoids scanning ALL plugins at startup; only the active one is scanned.
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::createPluginsGameList()
++{
++	return createPluginsGameList(false);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// createPluginsGameList – per-plugin lazy-loading cache
++//
++// Flow:
++//   1. Determine target plugins based on enabledPlugin / merge mode.
++//   2. For each target plugin:
++//        a. Check per-plugin disk cache – if valid, load it.
++//        b. If no cache or forceRescan, scan the ROM dir, save cache.
++//   3. buildMergedList() – populate pluginsGameList & romPathsList.
++//
++// This avoids scanning ALL plugins at startup; only the active one is scanned.
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::createPluginsGameList(bool forceRescan)
++{
++	WriteLog("INFO", "[CACHE] createPluginsGameList(forceRescan=%d)", forceRescan);
++
++	// 扫描保护：如果有插件正在扫描中，等待其完成（最多等10秒）
++	if (scanning) {
++		WriteLog("INFO", "[CACHE] scan in progress, waiting up to 10s ...");
++		for (int wait = 0; wait < 100; ++wait) {
++			usleep(100000);
++			if (!scanning) break;
++		}
++		if (scanning) {
++			WriteLog("WARNING", "[CACHE] scan wait timeout, proceeding anyway");
++		}
++	}
++
++	if (forceRescan) {
++		// Delete all per-plugin caches on disk
++		map<string, PluginGameCache>::iterator kvIt2;
++		for (kvIt2 = perPluginCache.begin(); kvIt2 != perPluginCache.end(); ++kvIt2) {
++			deletePluginCache(kvIt2->first.c_str());
++		}
++		perPluginCache.clear();
++	}
++
++	// Step 1: determine target plugin indices
++	// 若 enabledPlugin 为空（首次运行或未保存过设置），自动选择第一个插件
++	if (Plugins.size() > 0 && (Settings.enabledPlugin[0] == '\0')) {
++		u32 firstMagic = GetPluginMagic(0);
++		snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", (unsigned int)firstMagic);
++		Settings.enabledPlugin[sizeof(Settings.enabledPlugin)-1] = '\0';
++		WriteLog("INFO", "[CACHE] enabledPlugin was empty, auto-selected first plugin magic=%s", Settings.enabledPlugin);
++	}
++	vector<u8> targetPluginIndices;
++	bool mergeByGroup = Settings.pluginShowMerged && (Settings.pluginMergeGroup[0] != '\0');
++	bool mergeAll     = Settings.pluginShowMerged &&
++	                    (strncasecmp(Settings.enabledPlugin, PLUGIN_MERGE_ALL_MAGIC, 3) == 0);
++
++	for (u8 i = 0; i < (u8)Plugins.size(); ++i) {
++		if (mergeByGroup) {
++			if (!Plugins[i].group.empty() &&
++			    strcasecmp(Plugins[i].group.c_str(), Settings.pluginMergeGroup) == 0)
++				targetPluginIndices.push_back(i);
++		} else if (mergeAll) {
++			targetPluginIndices.push_back(i);
++		} else {
++			u32 magic = GetPluginMagic(i);
++			char magicStr[9];
++			snprintf(magicStr, sizeof(magicStr), "%08X", (unsigned int)magic);
++			if (strncasecmp(Settings.enabledPlugin, magicStr, 8) == 0)
++				targetPluginIndices.push_back(i);
++		}
++	}
++
++	WriteLog("INFO", "[CACHE] target plugins: %d", (int)targetPluginIndices.size());
++
++	// Step 2: for each target plugin, lazy-load or scan+save cache
++	for (size_t ti = 0; ti < targetPluginIndices.size(); ++ti) {
++		u8 pos = targetPluginIndices[ti];
++		u32 magic = GetPluginMagic(pos);
++		string key = magicToKey(magic);
++
++		PluginGameCache* cache = getOrCreateCache(magic);
++
++		if (!forceRescan && cache->cacheValid && !cache->romList.empty()) {
++			WriteLog("INFO", "[CACHE] plugin %d magic=%s in-memory cache hit", pos, key.c_str());
++			// 不要 continue，继续执行下面的逻辑确保 buildMergedList 被调用
++		}
++		// Try disk cache first
++		else if (!forceRescan) {
++			bool loaded = loadPluginCache(magic, cache->romList);
++			if (loaded) {
++				cache->cacheValid  = true;
++				cache->cacheLoaded = true;
++				WriteLog("INFO", "[CACHE] plugin %d magic=%s disk cache loaded (%d ROMs)",
++				         pos, key.c_str(), (int)cache->romList.size());
++			} else {
++				WriteLog("WARNING", "[CACHE] plugin %d magic=%s disk cache load FAILED", pos, key.c_str());
++			}
++		}
++
++		// No cache – scan the ROM dir
++		if (cache->romList.empty()) {
++			scanning = true;
++			WriteLog("INFO", "[SCANN] scanning plugin %d magic=%s romDir=%s",
++			         pos, key.c_str(), GetRomDir(pos));
++			scanPluginAtIndex(pos);
++
++			// Scan done – log before save (save can hang on slow USB)
++			WriteLog("INFO", "[SCANN] plugin %d magic=%s scan done: %d ROMs",
++			         pos, key.c_str(), (int)cache->romList.size());
++
++			// Save to disk for next time
++			if (!cache->romList.empty())
++				savePluginCache(magic, cache->romList);
++
++			WriteLog("INFO", "[SCANN] plugin %d magic=%s saved", pos, key.c_str());
++		}
++	}
++
++	// Step 3: build merged list from per-plugin caches
++	// Clear existing list first
++	for (size_t i = 0; i < pluginsGameList.size(); ++i) {
++		if (pluginsGameList[i]) free(pluginsGameList[i]);
++	}
++	pluginsGameList.clear();
++	romPathsList.clear();
++
++	WriteLog("INFO", "[CACHE] building merged list from %d target caches", (int)targetPluginIndices.size());
++	
++	// Only merge target plugins
++	for (size_t ti = 0; ti < targetPluginIndices.size(); ++ti) {
++		u8 pos = targetPluginIndices[ti];
++		u32 magic = GetPluginMagic(pos);
++		string key = magicToKey(magic);
++		map<string, PluginGameCache>::iterator it = perPluginCache.find(key);
++		if (it != perPluginCache.end() && !it->second.romList.empty()) {
++			for (size_t ri = 0; ri < it->second.romList.size(); ++ri) {
++				PluginDiscHdr* src = it->second.romList[ri];
++				discHdr* dest = (discHdr*)memalign(32, ALIGN32(sizeof(discHdr)));
++				if (dest) {
++					memcpy(dest, src, sizeof(discHdr));
++					pluginsGameList.push_back(dest);
++					romPathsList.push_back(string(src->path));
++				}
++			}
++		}
++	}
++	
++	WriteLog("INFO", "[CACHE] merged list built: %d games total", (int)pluginsGameList.size());
++	scanning = false;
++	return true;
++}
++
++bool Plugin::refreshPluginsGameList()
++{
++	return createPluginsGameList(true);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// forceRefresh – invalidate ALL caches (legacy: deletes old global cache too)
++// ─────────────────────────────────────────────────────────────────────────────
++void Plugin::forceRefresh()
++{
++	perPluginCache.clear();
++	// Also delete old global cache for compatibility
++	char oldCacheFile[512];
++	snprintf(oldCacheFile, sizeof(oldCacheFile), "%slists/cache.db", Settings.PluginsPath);
++	remove(oldCacheFile);
++	WriteLog("INFO", "[CACHE] all caches invalidated");
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// Legacy cache API (kept for backward compatibility with callers that check
++// isCacheValid / cleanupGameListCache etc.)
++// ─────────────────────────────────────────────────────────────────────────────
++bool Plugin::isCacheValid()
++{
++	return !pluginsGameList.empty();
++}
++
++bool Plugin::isPluginCacheValid(u32 magic)
++{
++	string key = magicToKey(magic);
++	map<string, PluginGameCache>::iterator it = perPluginCache.find(key);
++	if (it == perPluginCache.end()) return false;
++	return it->second.cacheValid && !it->second.romList.empty();
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// GetFiles – unchanged from original (recursive dir scanner)
++// ─────────────────────────────────────────────────────────────────────────────
++const char *fileExt = NULL;
++dirent *pent = NULL;
++DIR  *pdir  = NULL;
++
++void Plugin::GetFiles(const char *Path, const vector<string>& FileTypes, u32 magic, u32 depth, u32 *totalSubdirs)
++{
++	u32 localSubdirs = 0;
++	if (totalSubdirs == NULL)
++		totalSubdirs = &localSubdirs;
++
++	char FullRomPath[256];
++	vector<string> SubPaths;
++	u32 fileCount = 0;
++	const u32 MAX_SUBDIRS = 100;  // Limit subdirs to prevent UI freeze
++
++	pdir = opendir(Path);
++	if(pdir == NULL) return;
++
++	while((pent = readdir(pdir)) != NULL)
++	{
++		if(pent->d_name[0] == '.') continue;
++		snprintf(FullRomPath, sizeof(FullRomPath), "%s/%s", Path, pent->d_name);
++
++		if(pent->d_type == DT_DIR && depth < 10 && *totalSubdirs < MAX_SUBDIRS)
++		{
++			SubPaths.push_back(FullRomPath);
++			(*totalSubdirs)++;
++		}
++		else if(pent->d_type == DT_REG)
++		{
++			fileExt = strrchr(pent->d_name, '.');
++			if(fileExt == NULL) fileExt = pent->d_name;
++			if(IsFileSupported(fileExt, FileTypes))
++			{
++				addRomToList(FullRomPath, magic);
++				++fileCount;
++				if (fileCount % 50 == 0)
++					WriteLog("INFO", "[SCANN] %08X scanned %u files in %s",
++					         magic, fileCount, Path);
++			}
++		}
++	}
++	closedir(pdir);
++	WriteLog("INFO", "[SCANN] %08X done %s: %u files, %u subdirs",
++	         magic, Path, fileCount, (u32)SubPaths.size());
++
++	if (*totalSubdirs >= MAX_SUBDIRS)
++	{
++		WriteLog("WARNING", "[SCANN] %08X reached subdir limit (%u), skipping remaining subdirs",
++		         magic, MAX_SUBDIRS);
++	}
++
++	for(vector<string>::const_iterator p = SubPaths.begin(); p != SubPaths.end(); ++p)
++	{
++		WriteLog("INFO", "[SCANN] %08X entering subdir: %s (depth=%u)",
++		         magic, p->c_str(), depth + 1);
++		GetFiles(p->c_str(), FileTypes, magic, depth + 1, totalSubdirs);
++	}
++	SubPaths.clear();
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// addRomToList – unchanged from original
++// ─────────────────────────────────────────────────────────────────────────────
++void Plugin::addRomToList(const char *FullPath, u32 magic)
++{
++	if(!FullPath) { gprintf("【错误】空路径参数\n"); return; }
++
++	const char *fileName = strrchr(FullPath, '/');
++	fileName = fileName ? fileName + 1 : FullPath;
++
++	static const char* excludedFiles[] = { "pgm.zip", "neogeo.zip", NULL };
++	for(int i = 0; excludedFiles[i]; ++i)
++		if(strcasecmp(fileName, excludedFiles[i]) == 0) {
++			gprintf("【排除】跳过 %s\n", fileName);
++			return;
++		}
++
++	static const u32 titleCheckMagics[] = { 0x50475648, 0 };
++	bool needCheckTitle = false;
++	for(int i = 0; titleCheckMagics[i]; ++i)
++		if(magic == titleCheckMagics[i]) { needCheckTitle = true; break; }
++
++	discHdr* ListElement = (discHdr*)memalign(32, ALIGN32(sizeof(discHdr)));
++	if (!ListElement) return;
++	memset(ListElement, 0, sizeof(discHdr));
++
++	// 先保存完整路径（包含扩展名）
++	strncpy(ListElement->path, FullPath, 259);
++	ListElement->path[259] = '\0';
++	romPathsList.push_back(string(FullPath));
++
++	const char *RomTitle = strrchr(FullPath, '/') + 1;
++	char *dot = strrchr((char*)RomTitle, '.');
++	if (dot) *dot = '\0';
++
++	if(needCheckTitle) {
++		char titlePath[512];
++		strncpy(titlePath, FullPath, sizeof(titlePath)-1);
++		titlePath[sizeof(titlePath)-1] = '\0';
++		char* lastSlash = strrchr(titlePath, '/');
++		if(lastSlash) {
++			strncpy(lastSlash+1, "title.txt", sizeof(titlePath)-(size_t)(lastSlash+1-titlePath)-1);
++			FILE* titleFile = fopen(titlePath, "r");
++			if(titleFile) {
++				char fileTitle[64] = {0};
++				if(fgets(fileTitle, sizeof(fileTitle), titleFile)) {
++					char *newline = strchr(fileTitle, '\n');
++					if(newline) *newline = '\0';
++					if(fileTitle[0] != '\0') {
++						strncpy(ListElement->title, fileTitle, 63);
++						ListElement->title[63] = '\0';
++						fclose(titleFile);
++						ListElement->magic = magic;
++						strncpy(ListElement->path, FullPath, 259);
++						ListElement->path[259] = '\0';
++						pluginGameList.push_back(ListElement);
++						return;
++					}
++				}
++				fclose(titleFile);
++			}
++		}
++	}
++
++	char magicWord[9];
++	snprintf(magicWord, sizeof(magicWord), "%08X", (unsigned int)magic);
++	const char *CustomTitle = customTitles.GetCustomTitle(magicWord, RomTitle);
++	if(CustomTitle && CustomTitle[0] != '\0')
++		strncpy(ListElement->title, CustomTitle, 63);
++	else
++		strncpy(ListElement->title, RomTitle, 63);
++	ListElement->title[63] = '\0';
++	ListElement->magic = magic;
++	pluginGameList.push_back(ListElement);
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// stringToVector – unchanged from original
++// ─────────────────────────────────────────────────────────────────────────────
++vector<string> Plugin::stringToVector(const string &text, char sep)
++{
++	vector<string> v;
++	if (text.empty()) return v;
++	u32 count = 1;
++	for (u32 i = 0; i < text.size(); ++i)
++		if (text[i] == sep) ++count;
++	v.reserve(count);
++	string::size_type off = 0, i = 0;
++	do {
++		i = text.find_first_of(sep, off);
++		if (i != string::npos) {
++			v.push_back(text.substr(off, i - off));
++			off = i + 1;
++		} else {
++			v.push_back(text.substr(off));
++		}
++	} while (i != string::npos);
++	return v;
++}
++
++// ─────────────────────────────────────────────────────────────────────────────
++// BootPluginRom – with ROM existence check and cache invalidation
++// ─────────────────────────────────────────────────────────────────────────────
++int Plugin::BootPluginRom(struct discHdr *gameHdr)
++{
++	struct discHdr gameHeader;
++	memcpy(&gameHeader, gameHdr, sizeof(struct discHdr));
++
++	char title[101];
++	memset(&title, 0, sizeof(title));
++	u32 title_len_no_ext = 0;
++	const char *rom_path = GetRomPath(gameHeader.title);
++	const char *path = NULL;
++	const char *device = NULL;
++
++	if(strchr(rom_path, '.') != NULL)
++	{
++		strncpy(title, strrchr(rom_path, '/') + 1, 100);
++		if(strchr(rom_path, '.') != NULL)
++			title_len_no_ext = strlen(title) - strlen(strrchr(title, '.'));
++		*strrchr(rom_path, '/') = '\0';
++		path = strchr(rom_path, '/') + 1;
++	}
++	else
++	{
++		*strrchr(rom_path, '/') = '\0';
++		strncpy(title, gameHeader.title, 63);
++	}
++
++	device = strncasecmp(rom_path, "sd", 2) == 0 ? "sd" : "usb";
++
++	const char *loader = fmt("%sWiiFlowLoader.dol", Settings.PluginsPath);
++	vector<string> arguments = CreateArgs(device, path, title, loader, title_len_no_ext, gameHeader.magic);
++
++	const char *plugin_dol_name = GetDolName(gameHeader.magic);
++	const char *plugin_file = plugin_dol_name;
++	if(strchr(plugin_file, ':') == NULL || !CheckFile(plugin_file))
++	{
++		plugin_file = fmt("%s/%s", Settings.PluginsPath, plugin_dol_name);
++		if(!CheckFile(plugin_file))
++		{
++			for(u8 i = SD; i < MAXDEVICES; ++i)
++			{
++				plugin_file = fmt("%s:/%s", DeviceName[i], plugin_dol_name);
++				if(CheckFile(plugin_file)) break;
++			}
++			if(!CheckFile(plugin_file)) return -1;
++		}
++	}
++
++	u8 *buffer = NULL;
++	u32 filesize = 0;
++	LoadFileToMem(plugin_file, &buffer, &filesize);
++	if(!buffer) return -1;
++	FreeHomebrewBuffer();
++	CopyHomebrewMemory(buffer, 0, filesize);
++
++	AddBootArgument(plugin_file);
++	for(u32 i = 0; i < arguments.size(); ++i)
++		AddBootArgument(arguments[i].c_str());
++	return !(BootHomebrewFromMem() < 0);
++}
+diff --git a/source/plugin/plugin.hpp b/source/plugin/plugin.hpp
+new file mode 100644
+index 00000000..b79e8287
+--- /dev/null
++++ b/source/plugin/plugin.hpp
+@@ -0,0 +1,158 @@
++/****************************************************************************
++ * Copyright (C) 2012 FIX94
++ * Copyright (C) 2016 Fledge68
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ * 
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ ****************************************************************************/
++#ifndef _PLUGIN_HPP_
++#define _PLUGIN_HPP_
++
++#include <fstream>
++#include <iostream>
++#include <string>
++#include <vector>
++#include <map>
++#include "usbloader/disc.h"
++#include "wstring.hpp"
++#include "PluginTitles.h"
++
++using namespace std;
++
++#define PLUGIN_DEV		"{device}"
++#define PLUGIN_PATH		"{path}"
++#define PLUGIN_NAME		"{name}"
++#define PLUGIN_NOEXT	"{name_no_ext}"
++#define PLUGIN_LDR		"{loader}"
++
++/** 多插件合并模式：enabledPlugin 设为该值时将显示所有插件的游戏列表，启动时仍按每条游戏的 magic 使用对应 DOL */
++#define PLUGIN_MERGE_ALL_MAGIC	"ALL"
++
++/** 插件分组：.ini 中可选 group=xxx，配合 Settings.pluginMergeGroup 只合并同组插件 */
++struct PluginOptions
++{
++	u32 magic;
++	int romPartition;
++	string romDir;
++	string fileTypes;	
++	string DolName;
++	string coverFolder;
++	string Args;
++	wString DisplayName;
++	string group;  ///< 可选，如 "mame2003"，用于按组合并列表
++};
++
++// 扩展的插件游戏结构：借鉴 WiiFlow 的 dir_discHdr 设计
++// 直接使用 discHdr.path 字段存储完整路径，无需独立的路径向量
++struct PluginDiscHdr : public discHdr
++{
++	u32 pluginMagic;      // 该游戏所属插件的 magic
++	PluginDiscHdr() : discHdr(), pluginMagic(0) {
++		memset(this, 0, sizeof(discHdr));
++	}
++};
++
++// Per-plugin game list cache entry - 简化版
++struct PluginGameCache
++{
++	vector<PluginDiscHdr*> romList;  // 扩展结构，路径已集成在 path 字段中
++	bool cacheValid;                 // 内存缓存是否有效
++	bool cacheLoaded;                // 是否已从磁盘加载
++};
++
++class Plugin
++{
++public:
++	char PluginMagicWord[9];
++	const char *GetDolName(u32 magic);
++	const char *GetCoverFolderName(u32 magic);
++	const char *GetRomPath(const char *title);		
++	const char *GetRomDir(u8 pos);
++	int GetRomPartition(u8 pos);
++	const string& GetFileTypes(u8 pos);
++	wString GetPluginName(u8 pos);
++	u32 GetPluginMagic(u8 pos);
++	s8 GetPluginPosition(u32 magic);
++	/** 返回插件 pos 的 group（.ini 中 group=），用于判断是否属于当前合并组 */
++	const char* GetPluginGroup(u8 pos);
++	int PluginsSize() { return Plugins.size();}
++	
++	void Init();
++	bool AddPlugin(const char *filepath);
++	void Cleanup();
++	void EndAdd();
++	void TrimLine(char *dest, char *src, int size);
++	
++	vector<string> CreateArgs(const char *device, const char *path, 
++		const char *title, const char *loader, u32 title_len_no_ext, u32 magic);
++	int BootPluginRom(struct discHdr *gameHdr);
++	
++	bool SNESCover(const char *magic);
++	bool GBCover(const char *magic);
++	vector<discHdr*> ParseScummvmINI(const char *filepath, const char *Device, u32 Magic);
++	bool createPluginsList();
++	bool createPluginsGameList();
++	bool createPluginsGameList(bool forceRescan);  ///< 内部重载：forceRescan=true 强制扫描硬盘
++	bool refreshPluginsGameList();   ///< 强制从硬盘重新扫描，返回是否发生实际重建
++	void forceRefresh();            ///< 标记缓存失效，下次 createPluginsGameList 会重建
++	bool isCacheValid();            ///< 缓存是否有效
++	bool isPluginCacheValid(u32 magic); ///< 指定 magic 的 per-plugin 缓存是否有效
++	bool IsRomExists(const char *path);       ///< 检查 ROM 文件是否仍存在于磁盘
++	void invalidatePluginCache(u32 magic);    ///< 删除单个插件的缓存（ROM 已不存在时调用）
++	vector<discHdr*>& GetPluginsGameList() { return pluginsGameList; } ///< 获取合并后的游戏列表
++	void GetFiles(const char *Path, const vector<string>& FileTypes, u32 magic, u32 depth = 1, u32 *totalSubdirs = NULL);
++	void addRomToList(const char *FullPath, u32 magic);
++
++private:
++	vector<PluginOptions> Plugins;
++	s8 Plugin_Pos;
++	bool adding;
++	bool scanning;          ///< 当前是否有插件扫描在进行
++	
++	// 游戏列表缓存：主列表（合并后）
++	vector<discHdr*> pluginsGameList;
++
++	// Per-plugin 缓存：key = magic（十六进制字符串如 "4D414D57"）
++	map<string, PluginGameCache> perPluginCache;
++
++	// 辅助：将 magic（u32）转为 8 位十六进制字符串 key
++	string magicToKey(u32 magic);
++	// 辅助：获取（或创建）指定 magic 的 cache entry
++	PluginGameCache* getOrCreateCache(u32 magic);
++	// 辅助：扫描单个插件，结果写入 perPluginCache[romDir]
++	void scanPluginAtIndex(u8 pos);
++	// 辅助：从指定插件 pos 扫描 ROM，返回 discHdr 列表（不写缓存）
++	void scanPluginDirect(u8 pos, vector<discHdr*>& outList, vector<string>& outPaths);
++	// 辅助：构建指定 magic 的缓存文件路径
++	string buildCacheFilePath(u32 magic);
++	// 辅助：构建指定 key 的缓存文件路径
++	string buildCacheFilePath(const char *key);
++	// 辅助：保存指定 magic 的 per-plugin 缓存到磁盘
++	bool savePluginCache(u32 magic, const vector<PluginDiscHdr*>& list);
++	// 辅助：从磁盘加载指定 magic 的 per-plugin 缓存
++	bool loadPluginCache(u32 magic, vector<PluginDiscHdr*>& outList);
++	// 辅助：按 enabledPlugin 过滤 perPluginCache 合并到 pluginsGameList
++	void buildMergedList();
++	// 辅助：删除单个插件的缓存文件
++	bool deletePluginCache(const char *key);
++
++	vector<string> stringToVector(const string &text, char sep);
++
++	// 以下变量保留向后兼容（供 GetRomPath 等使用）
++	vector<string> romPathsList;
++	vector<discHdr*> pluginGameList;  ///< 扫描单个插件时的临时列表
++};
++
++extern Plugin m_plugin;
++
++#endif
+diff --git a/source/prompts/GameWindow.cpp b/source/prompts/GameWindow.cpp
+index ade76e96..d18ec2a7 100644
+--- a/source/prompts/GameWindow.cpp
++++ b/source/prompts/GameWindow.cpp
+@@ -199,11 +199,14 @@ GameWindow::GameWindow(GameBrowseMenu *m, struct discHdr *header)
+ 	detailsBtn->SetEffectGrow();
+ 
+ 	Append(dialogBoxImg);
+-	if (Settings.ShowPlayCount) Append(playcntTxt);
++	if (Settings.ShowPlayCount && !Settings.pluginMode && Settings.GameDisplayType != DISP_PLUGIN) Append(playcntTxt);
+ 	Append(backBtn);
+-	Append(detailsBtn);
++	if (!Settings.pluginMode && Settings.GameDisplayType != DISP_PLUGIN)
++	{
++		Append(detailsBtn);
++		Append(sizeTxt);
++	}
+ 	Append(nameBtn);
+-	Append(sizeTxt);
+ 	if (!dvdheader)//stuff we don't show if it is a DVD mounted
+ 	{
+ 		Append(btnLeft);
+@@ -303,7 +306,7 @@ GameWindow::~GameWindow()
+ 
+ void GameWindow::LoadGameSound(const struct discHdr * header)
+ {
+-	if (Settings.gamesoundvolume == 0)
++	if (Settings.gamesoundvolume == 0 || Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+ 		return;
+ 
+ 	BNRInstance::Instance()->Load(header);
+@@ -342,6 +345,12 @@ void GameWindow::LoadDiscImage(const u8 * id)
+ 	diskImgData2 = diskImgData;
+ 	diskImgData = NULL;
+ 
++	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++	{
++		diskImgData = Resources::GetImageData("nodisc.png");
++		return;
++	}
++
+ 	char imgPath[150];
+ 	char IDFull[7];
+ 	char ID3[4] = {};
+@@ -754,6 +763,16 @@ int GameWindow::MainLoop()
+ 
+ void GameWindow::BootGame(struct discHdr *header)
+ {
++	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++	{
++		int ret = GameBooter::BootGame(header);
++		if (ret < 0)
++		{
++			ShowError(tr("Plugin ROM not found or failed to boot."));
++		}
++		return;
++	}
++
+ 	wiilight(0);
+ 
+ 	GameCFG* game_cfg = GameSettings.GetGameCFG(header->id);
+diff --git a/source/settings/CSettings.cpp b/source/settings/CSettings.cpp
+index f1fffef7..d5065ac2 100644
+--- a/source/settings/CSettings.cpp
++++ b/source/settings/CSettings.cpp
+@@ -75,6 +75,15 @@ void CSettings::SetDefault()
+ 	snprintf(NandEmuPath, sizeof(NandEmuPath), "%s/nands/01/", BootDevice);
+ 	snprintf(DEVOLoaderPath, sizeof(DEVOLoaderPath), "%s/apps/gc_devo/", BootDevice);
+ 	snprintf(NINLoaderPath, sizeof(NINLoaderPath), "%s/apps/nintendont/", BootDevice);
++	snprintf(PluginsPath, sizeof(PluginsPath), "%splugins/", ConfigPath);
++	pluginMode = OFF;
++	Plugin3DCvrs = OFF;
++	PluginRomPart = 0;
++	enabledPlugin[0] = 0;
++	pluginMergeGroup[0] = 0;
++	pluginShowMerged = 1;
++	pluginControllerSwitch = 1;
++	pluginLogEnabled = 0;
+ 	strlcpy(NandEmuChanPath, NandEmuPath, sizeof(NandEmuChanPath));
+ 	strlcpy(GameCubePath, "usb1:/games/", sizeof(GameCubePath));
+ 	strlcpy(GameCubeSDPath, "sd:/games/", sizeof(GameCubeSDPath));
+@@ -529,6 +538,15 @@ bool CSettings::Save()
+ 	fprintf(file, "DEVODiscDelay = %d\n", DEVODiscDelay);
+ 	fprintf(file, "DEVOLoaderPath = %s\n", DEVOLoaderPath);
+ 	fprintf(file, "NINLoaderPath = %s\n", NINLoaderPath);
++	fprintf(file, "PluginsPath = %s\n", PluginsPath);
++	fprintf(file, "pluginMode = %d\n", pluginMode);
++	fprintf(file, "enabledPlugin = %s\n", enabledPlugin);
++	fprintf(file, "pluginMergeGroup = %s\n", pluginMergeGroup);
++	fprintf(file, "pluginShowMerged = %d\n", pluginShowMerged);
++	fprintf(file, "pluginControllerSwitch = %d\n", pluginControllerSwitch);
++	fprintf(file, "pluginLogEnabled = %d\n", pluginLogEnabled);
++	fprintf(file, "Plugin3DCvrs = %d\n", Plugin3DCvrs);
++	fprintf(file, "PluginRomPart = %d\n", PluginRomPart);
+ 	fprintf(file, "GCInstallCompressed = %d\n", GCInstallCompressed);
+ 	fprintf(file, "GCInstallAligned = %d\n", GCInstallAligned);
+ 	fprintf(file, "PrivateServer = %d\n", PrivateServer);
+@@ -1401,6 +1419,51 @@ bool CSettings::SetSetting(char *name, char *value)
+ 		strlcpy(GameCubeSDPath, value, sizeof(GameCubeSDPath));
+ 		return true;
+ 	}
++	else if (strcmp(name, "PluginsPath") == 0)
++	{
++		strlcpy(PluginsPath, value, sizeof(PluginsPath));
++		return true;
++	}
++	else if (strcmp(name, "enabledPlugin") == 0)
++	{
++		strlcpy(enabledPlugin, value, sizeof(enabledPlugin));
++		return true;
++	}
++	else if (strcmp(name, "pluginMergeGroup") == 0)
++	{
++		strlcpy(pluginMergeGroup, value, sizeof(pluginMergeGroup));
++		return true;
++	}
++	else if (strcmp(name, "pluginShowMerged") == 0)
++	{
++		pluginShowMerged = atoi(value) ? 1 : 0;
++		return true;
++	}
++	else if (strcmp(name, "pluginControllerSwitch") == 0)
++	{
++		pluginControllerSwitch = atoi(value) ? 1 : 0;
++		return true;
++	}
++	else if (strcmp(name, "pluginLogEnabled") == 0)
++	{
++		pluginLogEnabled = atoi(value) ? 1 : 0;
++		return true;
++	}
++	else if (strcmp(name, "pluginMode") == 0)
++	{
++		pluginMode = atoi(value);
++		return true;
++	}
++	else if (strcmp(name, "Plugin3DCvrs") == 0)
++	{
++		Plugin3DCvrs = atoi(value);
++		return true;
++	}
++	else if (strcmp(name, "PluginRomPart") == 0)
++	{
++		PluginRomPart = atoi(value);
++		return true;
++	}
+ 	else if (strcmp(name, "URL_Banners") == 0)
+ 	{
+ 		if (ValidateURL(value))
+diff --git a/source/settings/CSettings.h b/source/settings/CSettings.h
+index 17004b1c..910fda56 100644
+--- a/source/settings/CSettings.h
++++ b/source/settings/CSettings.h
+@@ -90,6 +90,15 @@ class CSettings
+ 		char GameCubeSDPath[100];
+ 		char DEVOLoaderPath[100];
+ 		char NINLoaderPath[100];
++		char PluginsPath[100];
++		char enabledPlugin[9];
++		char pluginMergeGroup[32];
++		short pluginShowMerged;
++		short pluginControllerSwitch;
++		short pluginLogEnabled;
++		short pluginMode;
++		short Plugin3DCvrs;
++		short PluginRomPart;
+ 		char CustomAddress[300];
+ 		char URL_Banners[300];
+ 		char URL_Covers2D[300];
+diff --git a/source/settings/GameTitles.cpp b/source/settings/GameTitles.cpp
+index 0e75d681..78bd9e7f 100644
+--- a/source/settings/GameTitles.cpp
++++ b/source/settings/GameTitles.cpp
+@@ -85,7 +85,7 @@ const char *CGameTitles::GetTitle(const struct discHdr *header) const
+ 
+ 	auto game = std::lower_bound(TitleList.begin(), TitleList.end(), (const char *)header->id, [](const GameTitle &gt, const char *gameid)
+ 								 { return (strncasecmp(gt.GameID, gameid, 6) < 0); });
+-	if (game != TitleList.end())
++	if (!Settings.pluginMode && game != TitleList.end())
+ 	{
+ 		if (strncasecmp(game->GameID, (const char *)header->id, 6) == 0)
+ 		{
+@@ -236,6 +236,8 @@ u32 CGameTitles::ReadCachedTitles(const char *path)
+ 
+ void CGameTitles::WriteCachedTitles(const char *path)
+ {
++	if (Settings.pluginMode)
++		return;
+ 	std::string Cachepath(path);
+ 	if (Cachepath.back() != '/')
+ 		Cachepath += '/';
+@@ -273,6 +275,8 @@ int CGameTitles::GetMissingTitles(std::vector<std::string> &MissingTitles, std::
+ {
+ 	for (u32 i = 0; i < headerlist.size(); ++i)
+ 	{
++		if (!headerlist[i])
++			continue;
+ 		bool found = false;
+ 		for (u32 n = 0; n < TitleList.size(); ++n)
+ 		{
+@@ -284,7 +288,7 @@ int CGameTitles::GetMissingTitles(std::vector<std::string> &MissingTitles, std::
+ 			}
+ 		}
+ 		if (!found /*&& !headerlist[i]->tid*/)
+-			MissingTitles.push_back((std::string)(const char *)headerlist[i]->id);
++			MissingTitles.push_back(std::string((const char *)headerlist[i]->id, 6));
+ 	}
+ 	return MissingTitles.size();
+ }
+@@ -302,7 +306,7 @@ void CGameTitles::CleanTitles(std::vector<struct discHdr *> &headerlist)
+ 			{
+ 				for (auto hdr : headerlist)
+ 				{
+-					if (strncasecmp(title.GameID, (const char *)hdr->id, 6) == 0)
++					if (hdr && strncasecmp(title.GameID, (const char *)hdr->id, 6) == 0)
+ 						return false;
+ 				}
+ 				return true;
+diff --git a/source/settings/SettingsEnums.h b/source/settings/SettingsEnums.h
+index 1854858c..8497f164 100644
+--- a/source/settings/SettingsEnums.h
++++ b/source/settings/SettingsEnums.h
+@@ -36,7 +36,8 @@ enum
+ 	DISP_WII			= 0x01,
+ 	DISP_NAND			= 0x02,
+ 	DISP_EMUNAND		= 0x04,
+-	DISP_GC				= 0x08
++	DISP_GC				= 0x08,
++	DISP_PLUGIN			= 0x10
+ };
+ 
+ enum
+diff --git a/source/settings/menus/CustomPathsSM.cpp b/source/settings/menus/CustomPathsSM.cpp
+index 21991dad..fd110001 100644
+--- a/source/settings/menus/CustomPathsSM.cpp
++++ b/source/settings/menus/CustomPathsSM.cpp
+@@ -66,6 +66,7 @@ CustomPathsSM::CustomPathsSM()
+ 	Options->SetName(Idx++, tr("Devolution Loader Path"));
+ 	Options->SetName(Idx++, tr("Nintendont Loader Path"));
+ 	Options->SetName(Idx++, tr("Cache BNR Files Path"));
++	Options->SetName(Idx++, tr("Plugin Path"));
+ 	Options->SetName(Idx++, tr("Cache Path"));
+ 
+ 	SetOptionValues();
+@@ -141,6 +142,9 @@ void CustomPathsSM::SetOptionValues()
+ 	//! Settings: Cache BNR Files Path
+ 	Options->SetValue(Idx++, Settings.BNRCachePath);
+ 
++	//! Settings: Plugin Files Path
++	Options->SetValue(Idx++, Settings.PluginsPath);
++
+ 	//! Settings: Cache Path
+ 	Options->SetValue(Idx++, Settings.GameHeaderCachePath);
+ }
+@@ -363,6 +367,13 @@ int CustomPathsSM::GetMenuInternal()
+ 		ChangePath(Settings.BNRCachePath, sizeof(Settings.BNRCachePath));
+ 	}
+ 
++	//! Settings: Plugin Path
++	else if (ret == ++Idx)
++	{
++		titleTxt->SetText(tr( "Plugin Path" ));
++		ChangePath(Settings.PluginsPath, sizeof(Settings.PluginsPath));
++	}
++
+ 	//! Settings: Cache Path
+ 	else if (ret == ++Idx)
+ 	{
+diff --git a/source/svnrev.c b/source/svnrev.c
+new file mode 100644
+index 00000000..44a03422
+--- /dev/null
++++ b/source/svnrev.c
+@@ -0,0 +1,6 @@
++#define SVN_REV "1281"
++
++const char *GetRev()
++{
++	return SVN_REV;
++}
+diff --git a/source/themes/filelist.h b/source/themes/filelist.h
+index ac2822ae..c42c3b27 100644
+--- a/source/themes/filelist.h
++++ b/source/themes/filelist.h
+@@ -1,7 +1,7 @@
+ /****************************************************************************
+  * USB Loader GX resource files.
+  * This file is generated automatically.
+- * Includes 208 files.
++ * Includes 212 files.
+  *
+  * NOTE:
+  * Any manual modification of this file will be overwriten by the generation.
+@@ -114,6 +114,8 @@
+ #include "menu_button_nand_png.h"
+ #include "menu_button_nand_over_png.h"
+ #include "menu_button_over_png.h"
++#include "menu_button_plugin_png.h"
++#include "menu_button_plugin_over_png.h"
+ #include "microphone_png.h"
+ #include "microphoneR_png.h"
+ #include "motionplus_png.h"
+@@ -147,6 +149,8 @@
+ #include "player4_grab_png.h"
+ #include "player4_point_png.h"
+ #include "playersSort_png.h"
++#include "pluginMode_png.h"
++#include "pluginMode_gray_png.h"
+ #include "progressbar_png.h"
+ #include "progressbar_empty_png.h"
+ #include "progressbar_outline_png.h"
+@@ -326,6 +330,8 @@ RecourceFile Resources::RecourceFiles[] =
+ 	{"menu_button_nand.png", menu_button_nand_png, menu_button_nand_png_size, NULL, 0},
+ 	{"menu_button_nand_over.png", menu_button_nand_over_png, menu_button_nand_over_png_size, NULL, 0},
+ 	{"menu_button_over.png", menu_button_over_png, menu_button_over_png_size, NULL, 0},
++	{"menu_button_plugin.png", menu_button_plugin_png, menu_button_plugin_png_size, NULL, 0},
++	{"menu_button_plugin_over.png", menu_button_plugin_over_png, menu_button_plugin_over_png_size, NULL, 0},
+ 	{"microphone.png", microphone_png, microphone_png_size, NULL, 0},
+ 	{"microphoneR.png", microphoneR_png, microphoneR_png_size, NULL, 0},
+ 	{"motionplus.png", motionplus_png, motionplus_png_size, NULL, 0},
+@@ -359,6 +365,8 @@ RecourceFile Resources::RecourceFiles[] =
+ 	{"player4_grab.png", player4_grab_png, player4_grab_png_size, NULL, 0},
+ 	{"player4_point.png", player4_point_png, player4_point_png_size, NULL, 0},
+ 	{"playersSort.png", playersSort_png, playersSort_png_size, NULL, 0},
++	{"pluginMode.png", pluginMode_png, pluginMode_png_size, NULL, 0},
++	{"pluginMode_gray.png", pluginMode_gray_png, pluginMode_gray_png_size, NULL, 0},
+ 	{"progressbar.png", progressbar_png, progressbar_png_size, NULL, 0},
+ 	{"progressbar_empty.png", progressbar_empty_png, progressbar_empty_png_size, NULL, 0},
+ 	{"progressbar_outline.png", progressbar_outline_png, progressbar_outline_png_size, NULL, 0},
+diff --git a/source/usbloader/GameBooter.cpp b/source/usbloader/GameBooter.cpp
+index 98d966fb..c943d848 100644
+--- a/source/usbloader/GameBooter.cpp
++++ b/source/usbloader/GameBooter.cpp
+@@ -59,6 +59,7 @@
+ #include "FileOperations/fileops.h"
+ #include "prompts/ProgressWindow.h"
+ #include "neek.hpp"
++#include "plugin/plugin.hpp"
+ #include "lstub.h"
+ #include "xml/GameTDB.hpp"
+ #include "wad/nandtitle.h"
+@@ -281,6 +282,9 @@ int GameBooter::BootGame(struct discHdr *gameHdr, const s8 useOcarina)
+ 	struct discHdr gameHeader;
+ 	memcpy(&gameHeader, gameHdr, sizeof(struct discHdr));
+ 
++	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++		return m_plugin.BootPluginRom(&gameHeader);
++
+ 	gprintf("Boot Game: %s (%.6s)\n", gameHeader.title, gameHeader.id);
+ 
+ 	// Load the HBC from NAND instead of from the homebrew browser
+diff --git a/source/usbloader/GameList.cpp b/source/usbloader/GameList.cpp
+index 3298d293..6ebf4e75 100644
+--- a/source/usbloader/GameList.cpp
++++ b/source/usbloader/GameList.cpp
+@@ -39,6 +39,8 @@
+ #include "memory/memory.h"
+ #include "Channels/channels.h"
+ #include "cache/cache.hpp"
++#include "plugin/plugin.hpp"
++#include "utils/Logger.h"
+ 
+ enum
+ {
+@@ -330,6 +332,22 @@ void GameList::InternalFilterList(std::vector<struct discHdr *> &FullList)
+ 
+ int GameList::FilterList(const wchar_t *gameFilter)
+ {
++	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++	{
++		WriteLog("INFO", "[PLUGIN] FilterList: creating plugin game list...");
++		m_plugin.createPluginsGameList();
++		FilteredList.clear();
++		WriteLog("INFO", "[PLUGIN] FilterList: loading %d games into FilteredList...", (int)m_plugin.GetPluginsGameList().size());
++		InternalLoadUnfiltered(m_plugin.GetPluginsGameList());
++		if (gameFilter)
++			GameFilter.assign(gameFilter);
++		GuiSearchBar::FilterList(FilteredList, GameFilter);
++		WriteLog("INFO", "[PLUGIN] FilterList: %d games loaded, about to sort...", (int)FilteredList.size());
++		std::sort(FilteredList.begin(), FilteredList.end(), NameSortCallback);
++		WriteLog("INFO", "[PLUGIN] FilterList: sort done, returning %d", (int)FilteredList.size());
++		return FilteredList.size();
++	}
++
+ 	if (gameFilter)
+ 		GameFilter.assign(gameFilter);
+ 
+@@ -353,7 +371,8 @@ void GameList::InternalLoadUnfiltered(std::vector<struct discHdr *> &FullList)
+ 		struct discHdr *header = FullList[i];
+ 
+ 		/* Register game */
+-		NewTitles::Instance()->CheckGame(header->id);
++		if (header)
++			NewTitles::Instance()->CheckGame(header->id);
+ 
+ 		FilteredList.push_back(header);
+ 	}
+@@ -361,6 +380,11 @@ void GameList::InternalLoadUnfiltered(std::vector<struct discHdr *> &FullList)
+ 
+ int GameList::LoadUnfiltered()
+ {
++	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
++	{
++		return FilterList();
++	}
++
+ 	GameFilter.clear();
+ 	FilteredList.clear();
+ 
+diff --git a/source/usbloader/wbfs.cpp b/source/usbloader/wbfs.cpp
+index 5cff734f..e76ad512 100644
+--- a/source/usbloader/wbfs.cpp
++++ b/source/usbloader/wbfs.cpp
+@@ -56,13 +56,13 @@ s32 WBFS_ReInit(u32 device)
+ 	WBFS_CloseAll();
+ 	if (device == WBFS_DEVICE_SDHC)
+ 	{
+-		DeviceHandler::Instance()->UnMountSD();
+-		DeviceHandler::Instance()->MountSD();
++		if (!DeviceHandler::Instance()->IsMounted(SD))
++			DeviceHandler::Instance()->MountSD();
+ 	}
+ 	else
+ 	{
+-		DeviceHandler::Instance()->UnMountAllUSB();
+-		DeviceHandler::Instance()->MountAllUSB();
++		if (DeviceHandler::GetUSBPartitionCount() == 0)
++			DeviceHandler::Instance()->MountAllUSB();
+ 	}
+ 	s32 ret = -1;
+ 
+diff --git a/source/utils/Logger.cpp b/source/utils/Logger.cpp
+new file mode 100644
+index 00000000..d6917a43
+--- /dev/null
++++ b/source/utils/Logger.cpp
+@@ -0,0 +1,53 @@
++/*
++ * 使用说明:
++ * 1. 调用 WriteLog 函数记录日志。
++ *    示例:
++ *      WriteLog("INFO", "程序启动成功");
++ *      WriteLog("ERROR", "无法加载文件: %s", "example.txt");
++ *
++ * 2. 日志文件路径为 usb1:/DEBUG.log。
++ *    可在 LOG_FILE_PATH 常量中修改路径。
++ *
++ * 3. 日志级别包括:
++ *    - "ERROR": 错误信息
++ *    - "WARNING": 警告信息
++ *    - "INFO": 一般信息
++ *    - "DEBUG": 调试信息
++ *
++ * 4. 日志开关: 通过 Settings.pluginLogEnabled 控制是否输出日志
++ */
++
++#include <cstdio>
++#include <cstdarg>
++#include <ctime>
++#include "settings/CSettings.h"
++
++static const char* LOG_FILE_PATH = "usb1:/DEBUG.log"; // 日志文件路径
++
++void WriteLog(const char* level, const char* format, ...) {
++    // 运行时检查日志开关
++    if (!Settings.pluginLogEnabled) {
++        return;
++    }
++
++    FILE* logFile = fopen(LOG_FILE_PATH, "a");
++    if (!logFile) return;
++
++    // 获取当前时间
++    time_t now = time(nullptr);
++    char timeStr[20];
++    strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", localtime(&now));
++
++    // 写入日志级别和时间
++    fprintf(logFile, "[%s][%s] ", timeStr, level);
++
++    // 写入日志内容
++    va_list args;
++    va_start(args, format);
++    vfprintf(logFile, format, args);
++    va_end(args);
++
++    fprintf(logFile, "\n");
++    fclose(logFile);
++}
++
+diff --git a/source/utils/Logger.h b/source/utils/Logger.h
+new file mode 100644
+index 00000000..8e4d1c29
+--- /dev/null
++++ b/source/utils/Logger.h
+@@ -0,0 +1,15 @@
++#ifndef _LOGGER_H_
++#define _LOGGER_H_
++
++#include <stdio.h>
++
++// 简单日志写入函数 - 运行时通过 Settings.pluginLogEnabled 控制
++void WriteLog(const char* level, const char* format, ...);
++
++// 日志宏 - 不再使用编译时开关，改为运行时检查
++#define LOG_ERROR(format, ...) WriteLog("ERROR", format, ##__VA_ARGS__)
++#define LOG_WARNING(format, ...) WriteLog("WARNING", format, ##__VA_ARGS__)
++#define LOG_INFO(format, ...) WriteLog("INFO", format, ##__VA_ARGS__)
++#define LOG_DEBUG(format, ...) WriteLog("DEBUG", format, ##__VA_ARGS__)
++
++#endif // _LOGGER_H_
