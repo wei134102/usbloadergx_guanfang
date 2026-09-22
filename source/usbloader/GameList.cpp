@@ -380,6 +380,11 @@ void GameList::InternalLoadUnfiltered(std::vector<struct discHdr *> &FullList)
 
 int GameList::LoadUnfiltered()
 {
+	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+	{
+		return FilterList();
+	}
+
 	GameFilter.clear();
 	FilteredList.clear();
 

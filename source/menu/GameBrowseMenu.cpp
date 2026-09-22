@@ -207,6 +207,15 @@ GameBrowseMenu::GameBrowseMenu()
 	m_plugin.Init();
 	m_plugin.createPluginsList();
 
+	if (Settings.GameDisplayType == DISP_PLUGIN || Settings.pluginMode)
+	{
+		if (m_plugin.PluginsSize() > 0 && Settings.enabledPlugin[0] == 0)
+		{
+			snprintf(Settings.enabledPlugin, sizeof(Settings.enabledPlugin), "%08X", m_plugin.GetPluginMagic(0));
+		}
+		gameList.FilterList();
+	}
+
 	homeBtn = new GuiButton(homeBtnImg, homeBtnImgOver, 0, 3,
 							thInt("489 - home menu btn pos x"), thInt("371 - home menu btn pos y"),
 							trigA, btnSoundOver, btnSoundClick2, 1, homeBtnTT, 15, -30, 1, 5);
