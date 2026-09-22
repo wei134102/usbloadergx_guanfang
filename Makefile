@@ -187,14 +187,16 @@ deploy:
 
 #---------------------------------------------------------------------------------
 zip:
-	$(MAKE)
+	@$(MAKE) release
 	@echo Creating zip file...
-	@[ -d usbloader_gx ] || mkdir -p usbloader_gx
-	@cp $(TARGET).dol usbloader_gx/
-	@cp $(TARGET).elf usbloader_gx/
-	@cp HBC/icon.png usbloader_gx/
-	@cp HBC/meta.xml usbloader_gx/
-	@zip usbloader_gx.zip usbloader_gx/*
+	@[ -d apps/usbloader_gx ] || mkdir -p apps/usbloader_gx
+	@cp $(TARGET).dol apps/usbloader_gx/
+	@cp $(TARGET).elf apps/usbloader_gx/
+	@cp HBC/icon.png apps/usbloader_gx/
+	@cp HBC/meta.xml apps/usbloader_gx/
+	@cp -r Languages apps/usbloader_gx/
+	@zip -r usbloader_gx.zip apps/
+	@rm -rf apps/
 
 #---------------------------------------------------------------------------------
 reload:
